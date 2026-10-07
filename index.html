@@ -171,6 +171,13 @@ table.ro td:first-child { white-space: normal; min-width: 180px; }
 .breakdown b { font-variant-numeric: tabular-nums; font-size: 15px; }
 .breakdown .hl { background: var(--accent-soft); }
 
+.side-label { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 2px 0; }
+.brand img { max-width: 120px; max-height: 44px; object-fit: contain; margin-bottom: 6px; align-self: flex-start; }
+.logo-row { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.logo-box { aspect-ratio: 4 / 3; max-width: 100%; border: 1px dashed var(--line); border-radius: 6px; display: grid; place-items: center; padding: 14px; background: repeating-conic-gradient(var(--surface-2) 0 25%, var(--surface) 0 50%) 0 0 / 16px 16px; color: var(--muted); font-size: 12.5px; text-align: center; }
+.logo-box img { max-width: 100%; max-height: 140px; object-fit: contain; }
+input[type="color"] { width: 64px; height: 36px; padding: 3px; cursor: pointer; }
+.btn[data-busy] { opacity: .65; pointer-events: none; }
 .saz { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 6px; font-size: 13px; z-index: 10; }
 .mobilebar { display: none; }
@@ -186,6 +193,16 @@ table.ro td:first-child { white-space: normal; min-width: 180px; }
   .side-foot { display: none; }
   .mobilebar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
   .verdict { grid-template-columns: minmax(0, 1fr); }
+  .logo-row { grid-template-columns: minmax(0, 1fr); }
+  .side-label { display: none; }
+}
+@media print {
+  .side, .mobilebar, .btn, .toast { display: none !important; }
+  .app { display: block; }
+  main { padding: 0; }
+  body { background: #fff; color: #000; }
+  .panel, .kpi, .prod, .verdict { break-inside: avoid; }
+  input, textarea, select { border: 0; background: transparent; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .view { animation: in .18s ease-out; }
@@ -196,13 +213,14 @@ table.ro td:first-child { white-space: normal; min-width: 180px; }
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand"><small>Plano de negócio</small><strong id="brandName">—</strong></div>
+    <div class="brand"><img id="brandLogo" alt="" hidden><small>Plano de negócio</small><strong id="brandName">—</strong></div>
     <nav class="tabs" id="tabs" role="tablist" aria-label="Seções do plano"></nav>
     <div class="side-foot" id="sideFoot"></div>
   </aside>
   <main id="main"></main>
 </div>
 <input type="file" id="importFile" accept="application/json,.json" hidden>
+<input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 /* ============================================================
@@ -216,7 +234,7 @@ function exemplo() {
     _exemplo: true,
     empresa: {
       nome: 'Doce Ponto Brigaderia', segmento: 'Confeitaria artesanal', cidade: 'Recife – PE',
-      responsavel: 'Sócia-fundadora', inicio: '2027-01', formaJuridica: 'ME – Simples Nacional',
+      responsavel: 'Sócia-fundadora', inicio: '2027-01', cor: '#0e6a54', formaJuridica: 'ME – Simples Nacional',
       descricao: 'Brigaderia de bairro com balcão, encomendas para festas e delivery por aplicativo. Produção própria diária com chocolate nobre.',
       missao: 'Transformar momentos comuns em pequenas celebrações com doces artesanais feitos no dia.',
       visao: 'Ser a brigaderia mais lembrada da Zona Norte em 3 anos e abrir a segunda unidade.',
@@ -673,11 +691,14 @@ V.painel = {
   after: () => drawDashboard()
 };
 
-function verdictBlock() {
+function verdictResumo() {
   const v = C.verdict;
-  const resumo = v === 'good' ? `O negócio retorna o investimento em ${meses(C.pb)} e rende ${pct(C.tirA)} ao ano, acima da TMA.`
-    : v === 'warn' ? `O projeto tem VPL positivo, mas ${C.checks.filter(c => c.ok !== 'good').map(c => c.nome.toLowerCase()).join('; ')} precisam de atenção.`
+  return v === 'good' ? `O negócio retorna o investimento em ${meses(C.pb)} e rende ${pct(C.tirA)} ao ano, acima da TMA.`
+    : v === 'warn' ? `O projeto tem VPL positivo, mas há pontos de atenção: ${C.checks.filter(c => c.ok !== 'good').map(c => `${c.nome.toLowerCase()} (${c.val})`).join('; ')}.`
     : `Com as premissas atuais o investimento não se paga no horizonte de ${C.H} meses. Revise preços, volume ou custos fixos.`;
+}
+function verdictBlock() {
+  const v = C.verdict, resumo = verdictResumo();
   return `<div class="verdict"><div class="badge ${v}">${VERD[v]}</div><div><strong>${esc(S.empresa.nome || 'Seu negócio')}</strong><p class="hint" style="font-size:13.5px;color:var(--ink-2)">${resumo}</p></div></div>`;
 }
 
@@ -694,7 +715,17 @@ V.empresa = {
       ${panel('Análise SWOT', 'Fatores internos (forças e fraquezas) e externos (oportunidades e ameaças)', `<div class="grid g2">
         ${field('empresa.forcas', 'Forças', { type: 'textarea', rows: 4 })}${field('empresa.fraquezas', 'Fraquezas', { type: 'textarea', rows: 4 })}
         ${field('empresa.oportunidades', 'Oportunidades', { type: 'textarea', rows: 4 })}${field('empresa.ameacas', 'Ameaças', { type: 'textarea', rows: 4 })}</div>`)}
-    </div>`
+      ${panel('Logomarca e cor da marca', 'Aparecem na capa, no cabeçalho do PDF e em todos os slides do PowerPoint', `<div class="logo-row">
+        <div class="logo-box" data-region="logo"></div>
+        <div class="stack" style="gap:12px">
+          <div class="row"><button class="btn sm primary" data-act="logo">Enviar logomarca</button><button class="btn sm" data-act="logo-rm">Remover</button></div>
+          <p class="hint">PNG, JPG, SVG ou WebP. PNG com fundo transparente fica melhor. A imagem é reduzida para no máximo 600 px.</p>
+          ${field('empresa.cor', 'Cor da marca', { type: 'color', hint: 'Usada em títulos, tabelas e capa dos relatórios' })}
+        </div></div>`)}
+    </div>`,
+  regions: {
+    logo: () => S.empresa.logo ? `<img src="${S.empresa.logo}" alt="Logomarca de ${esc(S.empresa.nome)}">` : '<span>Nenhuma logomarca enviada</span>'
+  }
 };
 
 V.mvp = {
@@ -1065,11 +1096,11 @@ function drawPayback() {
     { label: 'Acumulado descontado', data: [C.fluxos[0], ...C.rows.map(r => r.accD)], borderColor: s2, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .2 }
   ] }, options: o, plugins: [zeroLine()] });
 }
-function zeroLine() {
+function zeroLine(color) {
   return { id: 'zero', afterDatasetsDraw(ch) {
     const y = ch.scales.y; if (!y || y.min > 0 || y.max < 0) return;
     const p = y.getPixelForValue(0), ctx = ch.ctx;
-    ctx.save(); ctx.strokeStyle = tok('--muted'); ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.save(); ctx.strokeStyle = color || tok('--muted'); ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(ch.chartArea.left, p); ctx.lineTo(ch.chartArea.right, p); ctx.stroke(); ctx.restore();
   } };
 }
@@ -1080,17 +1111,26 @@ function renderNav() {
   document.getElementById('tabs').innerHTML = TABS.map(t => `<button role="tab" data-tab="${t.id}" aria-selected="${t.id === tab}"><span class="k">${t.k}</span>${t.t}</button>`).join('');
 }
 function actionsHtml() {
-  return `<button class="btn sm" data-act="export">Baixar plano (.json)</button>
+  return `<span class="side-label">Relatórios</span>
+    <button class="btn sm primary" data-act="pdf">Gerar PDF</button>
+    <button class="btn sm primary" data-act="ppt">Gerar PowerPoint</button>
+    <span class="side-label">Dados</span>
+    <button class="btn sm" data-act="export">Baixar plano (.json)</button>
     <button class="btn sm" data-act="copy">Copiar dados</button>
     <button class="btn sm" data-act="import">Importar .json</button>
     <button class="btn sm" data-act="reset">Recarregar exemplo</button>
     <button class="btn sm" data-act="clear">Começar do zero</button>`;
 }
+function syncBrand() {
+  document.getElementById('brandName').textContent = S.empresa.nome || 'Meu negócio';
+  const bl = document.getElementById('brandLogo');
+  if (S.empresa.logo) { bl.src = S.empresa.logo; bl.hidden = false; } else { bl.hidden = true; bl.removeAttribute('src'); }
+}
 function render() {
   C = compute(S);
   if (!V[tab]) tab = 'painel';
   renderNav();
-  document.getElementById('brandName').textContent = S.empresa.nome || 'Meu negócio';
+  syncBrand();
   document.getElementById('sideFoot').innerHTML = (S._exemplo ? '<span class="example-note">Dados de exemplo — edite à vontade</span>' : '') + actionsHtml();
   Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
   main.innerHTML = `<div class="view">${V[tab].html()}</div><div class="mobilebar">${actionsHtml()}</div>`;
@@ -1111,7 +1151,7 @@ function refresh(recompute = true) {
     const tbl = findCalc(path, i, k);
     if (tbl != null) el.innerHTML = tbl;
   });
-  document.getElementById('brandName').textContent = S.empresa.nome || 'Meu negócio';
+  syncBrand();
   V[tab].after && V[tab].after();
 }
 const calcIndex = {};
@@ -1166,6 +1206,10 @@ function toast(msg) {
   document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
 }
 function doAction(a, btn) {
+  if (a === 'pdf') { gerarPDF(btn); return; }
+  if (a === 'ppt') { gerarPPT(btn); return; }
+  if (a === 'logo') { document.getElementById('logoFile').click(); return; }
+  if (a === 'logo-rm') { delete S.empresa.logo; delete S.empresa.logoW; delete S.empresa.logoH; save(); render(); toast('Logomarca removida'); return; }
   if (a === 'export') {
     const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1202,6 +1246,7 @@ function vazio() {
   const e = exemplo();
   Object.keys(e.empresa).forEach(k => e.empresa[k] = '');
   e.empresa.nome = 'Meu negócio';
+  e.empresa.cor = '#0e6a54';
   e.empresa.inicio = new Date().toISOString().slice(0, 7);
   e.produtos = [TPL.produtos()];
   e.comercial = { canais: [{ canal: 'Venda direta', part: 100, taxa: 0 }], sazonalidade: Array(12).fill(100), politica: '', metas: '', prazoRecebimento: '' };
@@ -1219,6 +1264,583 @@ new MutationObserver(() => V[tab].after && V[tab].after()).observe(document.docu
 
 { const stored = load(); S = stored ? merge(exemplo(), stored) : exemplo(); if (stored && !stored._exemplo) delete S._exemplo; }
 render();
+</script>
+<script>
+/* ============================================================
+   Exportação: logomarca, PDF formatado e PowerPoint
+   ============================================================ */
+const LIBS = {
+  jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  autotable: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
+  pptx: 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'
+};
+const _loaded = {};
+function loadScript(src) {
+  return _loaded[src] || (_loaded[src] = new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = res;
+    el.onerror = () => { delete _loaded[src]; el.remove(); rej(new Error('sem conexão para carregar a biblioteca')); };
+    document.head.appendChild(el);
+  }));
+}
+function busy(btn, msg) { if (!btn) return; btn.dataset.label = btn.textContent; btn.dataset.busy = '1'; btn.textContent = msg; }
+function unbusy(btn) { if (!btn) return; btn.textContent = btn.dataset.label || btn.textContent; delete btn.dataset.busy; }
+function fileBase() {
+  return (S.empresa.nome || 'plano').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w\-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'plano';
+}
+function hexRgb(h) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(h || '') ? h.replace('#', '') : '0e6a54';
+  return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+}
+function mix(rgb, t) { return rgb.map(c => Math.round(c + (255 - c) * t)); }
+function rgbHex(rgb) { return rgb.map(c => c.toString(16).padStart(2, '0')).join('').toUpperCase(); }
+function dataHoje() { return new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); }
+function fit(w, h, maxW, maxH) { const r = Math.min(maxW / w, maxH / h); return { w: w * r, h: h * r }; }
+
+/* ---------- upload da logomarca ---------- */
+document.getElementById('logoFile').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { toast('Envie uma imagem PNG, JPG, SVG ou WebP'); return; }
+  const r = new FileReader();
+  r.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const w0 = img.naturalWidth || 600, h0 = img.naturalHeight || 300;
+      const k = Math.min(1, 600 / Math.max(w0, h0));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(w0 * k)); cv.height = Math.max(1, Math.round(h0 * k));
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      try {
+        S.empresa.logo = cv.toDataURL('image/png'); S.empresa.logoW = cv.width; S.empresa.logoH = cv.height;
+        delete S._exemplo; save(); render(); toast('Logomarca adicionada');
+      } catch (err) { toast('Não foi possível ler esta imagem'); }
+    };
+    img.onerror = () => toast('Não foi possível ler esta imagem');
+    img.src = r.result;
+  };
+  r.readAsDataURL(f);
+});
+
+/* ---------- dados comuns aos relatórios ---------- */
+function reportData() {
+  C = compute(S);
+  const E = S.empresa;
+  const a1 = C.anos[0] || {};
+  const kpis = [
+    ['Investimento total', brl0(C.inv.total), `${brl0(C.inv.proprio)} próprio · ${brl0(C.inv.fin)} financiado`],
+    ['Receita no ano 1', brl0(a1.receita), `média de ${brl0(C.receitaMes1)}/mês`],
+    ['Lucro líquido ano 1', brl0(a1.ll), `lucratividade ${pct(C.lucrat1)}`],
+    ['VPL', brl0(C.vpl), `TMA ${pct(n(S.premissas.tmaAnual) / 100)} a.a.`],
+    ['TIR', Number.isFinite(C.tirA) ? pct(C.tirA) + ' a.a.' : '—', Number.isFinite(C.tirM) ? pct(C.tirM, 2) + ' a.m.' : ''],
+    ['Payback', Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna', 'descontado: ' + (Number.isFinite(C.pbD) ? fN1.format(C.pbD) + ' meses' : 'não retorna')],
+    ['Ponto de equilíbrio', brl0(C.peR) + '/mês', `margem de segurança ${pct(C.margemSeg)}`],
+    ['Rentabilidade', pct(C.rentab) + ' a.a.', 'lucro médio anual ÷ investimento'],
+    ['Custo do MVP', brl0(C.mvp.custo), `${fN.format(C.mvp.horas)} h de trabalho`]
+  ];
+  const statusTxt = { good: 'OK', warn: 'Atenção', bad: 'Crítico' };
+  const dreRows = [
+    ['Receita bruta', 'receita', 1, true], ['(-) Impostos, comissões e taxas', 'ded', -1], ['(-) Custo dos produtos vendidos', 'cpv', -1],
+    ['= Margem de contribuição', 'mc', 1, true], ['(-) Custos fixos', 'fixos', -1], ['= EBITDA', 'ebitda', 1, true], ['(-) Depreciação', 'deprec', -1],
+    ['(-) Juros', 'juros', -1], ['= Lucro antes do IR', 'lair', 1], ['(-) IR/CSLL', 'ir', -1], ['= Lucro líquido', 'll', 1, true],
+    ['Lucratividade', null, 1], ['Saldo de caixa no fim do ano', 'caixaFim', 1]
+  ];
+  const dre = dreRows.map(([l, k, sgn, b]) => ({ l, b, vals: C.anos.map(a => k ? brl0((a[k] * sgn) || 0) : pct(a.ll / a.receita)) }));
+  return { E, a1, kpis, statusTxt, dre, cor: hexRgb(E.cor), verdict: VERD[C.verdict], resumo: verdictResumo() };
+}
+
+/* ---------- gráficos como imagem (paleta clara fixa) ---------- */
+const PAL = { s1: '#2a78d6', s2: '#eb6834', s3: '#1baf7a', ink: '#15201b', ink2: '#48564e', line: '#dfe4df', muted: '#76837b' };
+function chartImg(type, labels, datasets, o = {}) {
+  const cv = document.createElement('canvas');
+  cv.width = o.w || 1600; cv.height = o.h || 720;
+  const fs = 24, hz = !!o.horizontal;
+  Chart.defaults.font.family = 'Helvetica, Arial, sans-serif';
+  const money = { color: PAL.ink2, font: { size: fs }, callback: v => kbrl(v) };
+  const cat = { color: PAL.ink2, font: { size: fs }, maxRotation: 0, autoSkipPadding: 40 };
+  const ch = new Chart(cv, {
+    type, data: { labels, datasets },
+    options: {
+      responsive: false, animation: false, devicePixelRatio: 1, indexAxis: hz ? 'y' : 'x',
+      layout: { padding: 12 },
+      plugins: { legend: { display: datasets.length > 1, position: 'top', align: 'start', labels: { color: PAL.ink2, font: { size: fs }, boxWidth: 30, boxHeight: 8, padding: 24 } }, tooltip: { enabled: false } },
+      scales: {
+        x: { grid: { display: hz, color: PAL.line }, border: { color: PAL.line }, ticks: hz ? money : cat },
+        y: { grid: { display: !hz, color: PAL.line }, border: { display: false }, ticks: hz ? cat : money }
+      }
+    },
+    plugins: [{ id: 'bg', beforeDraw(c) { const x = c.ctx; x.save(); x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height); x.restore(); } }, zeroLine(PAL.muted)]
+  });
+  const url = cv.toDataURL('image/png');
+  ch.destroy();
+  return url;
+}
+const lineDs = (label, data, color) => ({ label, data, borderColor: color, backgroundColor: color, borderWidth: 4, pointRadius: 0, tension: .25 });
+const barDs = (label, data, color) => ({ label, data, backgroundColor: color, borderRadius: 6, borderSkipped: false, maxBarThickness: 90 });
+function chartsReport() {
+  const lbl = C.rows.map(r => r.label);
+  return {
+    receita: chartImg('line', lbl, [lineDs('Receita bruta', C.rows.map(r => r.receita), PAL.s1), lineDs('Custos totais', C.rows.map(r => r.custosTot), PAL.s2)]),
+    anual: chartImg('bar', C.anos.map(a => 'Ano ' + a.ano), [barDs('Receita bruta', C.anos.map(a => a.receita), PAL.s1), barDs('Lucro líquido', C.anos.map(a => a.ll), PAL.s3)]),
+    payback: chartImg('line', ['0', ...C.rows.map(r => String(r.m))], [lineDs('Acumulado simples', [C.fluxos[0], ...C.rows.map(r => r.acc)], PAL.s1), lineDs('Acumulado descontado', [C.fluxos[0], ...C.rows.map(r => r.accD)], PAL.s2)])
+  };
+}
+
+/* ============================================================
+   PDF
+   ============================================================ */
+// fontes padrão do PDF só cobrem Latin-1
+const T = s => String(s ?? '').replace(/−/g, '-').replace(/[–—]/g, '-').replace(/[“”]/g, '"').replace(/[‘’]/g, "'")
+  .replace(/…/g, '...').replace(/≈/g, '~').replace(/•/g, '-').replace(/[  ]/g, ' ').replace(/×/g, 'x').replace(/[^\x00-\xFF]/g, '');
+
+async function gerarPDF(btn) {
+  busy(btn, 'Gerando PDF…');
+  try {
+    await loadScript(LIBS.jspdf); await loadScript(LIBS.autotable);
+    const D = reportData(), G = chartsReport();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, H = 297, M = 18, CW = W - 2 * M, TOP = 30, BOT = H - 20;
+    const INK = [21, 32, 27], INK2 = [72, 86, 78], MUT = [118, 131, 123], LINE = [214, 221, 215];
+    const BR = D.cor, TINT = mix(BR, 0.9), TINT2 = mix(BR, 0.95);
+    let y = TOP;
+    const logo = S.empresa.logo, lw = n(S.empresa.logoW) || 3, lh = n(S.empresa.logoH) || 1;
+    const font = (sz, st = 'normal', col = INK) => { doc.setFont('helvetica', st); doc.setFontSize(sz); doc.setTextColor(...col); };
+    let pend = null; // subtítulo aguardando o bloco seguinte, para nunca ficar órfão
+    const ensure = h => {
+      if (y + h + (pend ? 8 : 0) > BOT) { doc.addPage(); y = TOP; }
+      if (pend) { font(12, 'bold'); doc.text(T(pend), M, y); y += 6; pend = null; }
+    };
+    let secN = 0;
+    const section = title => {
+      doc.addPage(); y = TOP + 2; secN++; pend = null;
+      font(9, 'bold', BR); doc.text(T(String(secN).padStart(2, '0') + '  ·  PLANO DE NEGÓCIO'), M, y);
+      y += 9; font(21, 'bold'); doc.text(T(title), M, y);
+      y += 4; doc.setDrawColor(...BR); doc.setLineWidth(0.8); doc.line(M, y, M + 22, y); y += 9;
+    };
+    const sub = t => { pend = t; };
+    const para = (label, text, w = CW, x = M) => {
+      if (!String(text || '').trim()) return;
+      font(10); const lines = doc.splitTextToSize(T(text), w);
+      ensure(7 + lines.length * 4.9);
+      if (label) { font(7.5, 'bold', MUT); doc.text(T(label.toUpperCase()), x, y); y += 4.6; }
+      font(10, 'normal', INK); doc.text(lines, x, y, { lineHeightFactor: 1.4 }); y += lines.length * 4.95 + 4;
+    };
+    const kpis = (items, cols = 3) => {
+      const gap = 4, bw = (CW - gap * (cols - 1)) / cols, bh = 21;
+      for (let i = 0; i < items.length; i += cols) {
+        ensure(bh + gap);
+        items.slice(i, i + cols).forEach(([l, v, d], j) => {
+          const x = M + j * (bw + gap);
+          doc.setFillColor(...TINT2); doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.roundedRect(x, y, bw, bh, 1.5, 1.5, 'FD');
+          font(7, 'bold', MUT); doc.text(T(l.toUpperCase()), x + 4, y + 5.5);
+          font(13, 'bold', INK); doc.text(T(v), x + 4, y + 12.5, { maxWidth: bw - 8 });
+          if (d) { font(7.5, 'normal', INK2); doc.text(T(d), x + 4, y + 17.5, { maxWidth: bw - 8 }); }
+        });
+        y += bh + gap;
+      }
+      y += 4;
+    };
+    const boxes = (items, cols = 2) => {
+      const gap = 4, bw = (CW - gap * (cols - 1)) / cols;
+      for (let i = 0; i < items.length; i += cols) {
+        const row = items.slice(i, i + cols).map(([t, txt]) => { font(9.5); return { t, lines: doc.splitTextToSize(T(txt || '—'), bw - 8) }; });
+        const bh = 12 + Math.max(...row.map(r => r.lines.length)) * 4.6;
+        ensure(bh + gap);
+        row.forEach((r, j) => {
+          const x = M + j * (bw + gap);
+          doc.setFillColor(...TINT2); doc.setDrawColor(...LINE); doc.setLineWidth(0.2); doc.roundedRect(x, y, bw, bh, 1.5, 1.5, 'FD');
+          font(8, 'bold', BR); doc.text(T(r.t.toUpperCase()), x + 4, y + 6.5);
+          font(9.5, 'normal', INK); doc.text(r.lines, x + 4, y + 12, { lineHeightFactor: 1.35 });
+        });
+        y += bh + gap;
+      }
+      y += 4;
+    };
+    const table = (head, body, o = {}) => {
+      const est = (body.length + 1) * ((o.fs || 8.5) * 0.55 + 2 * (o.pad || 2.2)) + 4;
+      ensure(est < 150 ? est : 18);
+      const colStyles = {};
+      (o.num || []).forEach(i => colStyles[i] = { halign: 'right' });
+      Object.assign(colStyles, o.cols || {});
+      doc.autoTable({
+        startY: y, head: [head.map(T)], body: body.map(r => r.map(c => T(c))), margin: { left: M, right: M, top: TOP, bottom: H - BOT },
+        theme: 'grid', rowPageBreak: 'avoid',
+        styles: { font: 'helvetica', fontSize: o.fs || 8.5, cellPadding: o.pad || 2.2, textColor: INK, lineColor: LINE, lineWidth: 0.15, valign: 'middle', overflow: 'linebreak' },
+        headStyles: { fillColor: BR, textColor: 255, fontStyle: 'bold', fontSize: (o.fs || 8.5) - 0.5 },
+        alternateRowStyles: { fillColor: [248, 250, 248] },
+        columnStyles: colStyles,
+        didParseCell: d => {
+          if (d.section !== 'body') return;
+          if (o.bold && o.bold.includes(d.row.index)) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = TINT; }
+          if (typeof d.cell.raw === 'string' && /^-R\$|^-\d/.test(d.cell.raw)) d.cell.styles.textColor = [184, 53, 53];
+          if (o.status && d.column.index === o.status) {
+            const v = d.cell.raw; d.cell.styles.fontStyle = 'bold';
+            d.cell.styles.textColor = v === 'OK' ? [29, 127, 70] : v === 'Atenção' ? [154, 98, 0] : [184, 53, 53];
+          }
+        }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    };
+    const image = (url, h, title) => {
+      ensure(h + (title ? 8 : 0) + 4);
+      if (title) { font(9, 'bold', INK2); doc.text(T(title), M, y); y += 3; }
+      doc.addImage(url, 'PNG', M, y, CW, h, undefined, 'FAST'); y += h + 6;
+    };
+
+    /* capa */
+    doc.setFillColor(...BR); doc.rect(0, 0, W, 8, 'F'); doc.rect(0, H - 34, W, 34, 'F');
+    if (logo) { const d = fit(lw, lh, 70, 40); doc.addImage(logo, 'PNG', M, 34, d.w, d.h, undefined, 'FAST'); }
+    font(11, 'bold', BR); doc.text('PLANO DE NEGÓCIO', M, 112);
+    font(32, 'bold'); const tl = doc.splitTextToSize(T(D.E.nome || 'Meu negócio'), CW); doc.text(tl, M, 126, { lineHeightFactor: 1.15 });
+    let cy = 126 + tl.length * 13;
+    font(13, 'normal', INK2); doc.text(T([D.E.segmento, D.E.cidade].filter(Boolean).join('  ·  ')), M, cy); cy += 14;
+    if (D.E.descricao) { font(10.5, 'normal', INK2); const dl = doc.splitTextToSize(T(D.E.descricao), CW - 30); doc.text(dl, M, cy, { lineHeightFactor: 1.45 }); cy += dl.length * 5.5 + 10; }
+    const vc = C.verdict === 'good' ? [29, 127, 70] : C.verdict === 'warn' ? [154, 98, 0] : [184, 53, 53];
+    doc.setFillColor(...vc.map(c => Math.round(c + (255 - c) * 0.88))); doc.roundedRect(M, Math.max(cy, 196), CW, 26, 2, 2, 'F');
+    font(8, 'bold', vc); doc.text('RESULTADO DA ANÁLISE DE VIABILIDADE', M + 6, Math.max(cy, 196) + 8);
+    font(15, 'bold', vc); doc.text(T(D.verdict), M + 6, Math.max(cy, 196) + 17);
+    font(9, 'normal', INK); doc.text(T(`VPL ${brl0(C.vpl)}   ·   TIR ${Number.isFinite(C.tirA) ? pct(C.tirA) + ' a.a.' : '—'}   ·   Payback ${Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna'}`), M + 70, Math.max(cy, 196) + 17);
+    font(10, 'normal', [255, 255, 255]);
+    doc.text(T([D.E.responsavel, D.E.formaJuridica].filter(Boolean).join('  ·  ')), M, H - 19);
+    doc.text(T(dataHoje()), M, H - 13);
+
+    /* 1. sumário executivo */
+    section('Sumário executivo');
+    para('Descrição do negócio', D.E.descricao);
+    para('Oportunidade de mercado', D.E.oportunidade);
+    sub('Principais indicadores'); kpis(D.kpis);
+    para('Conclusão', `${D.verdict}. ${D.resumo}`);
+    sub('Identificação');
+    table(['Campo', 'Informação'], [['Forma jurídica / regime', D.E.formaJuridica], ['Responsável', D.E.responsavel], ['Início das operações', D.E.inicio ? rotuloMes(+D.E.inicio.slice(0, 4), +D.E.inicio.slice(5, 7) - 1, 1) : '']].filter(r => r[1]), { cols: { 0: { cellWidth: 55, fontStyle: 'bold' } } });
+    sub('Identidade'); boxes([['Missão', D.E.missao], ['Visão', D.E.visao], ['Valores', D.E.valores]], 3);
+
+    /* 2. SWOT */
+    section('Análise SWOT');
+    boxes([['Forças', D.E.forcas], ['Fraquezas', D.E.fraquezas], ['Oportunidades', D.E.oportunidades], ['Ameaças', D.E.ameacas]], 2);
+
+    /* 3. MVP */
+    const Mv = S.mvp;
+    section('MVP: produto mínimo viável');
+    para('Hipótese a validar', Mv.hipotese); para('Problema do cliente', Mv.problema); para('Critério de sucesso', Mv.metrica);
+    kpis([['Custo total do MVP', brl0(C.mvp.custo), 'itens incluídos + divulgação'], ['Esforço', fN.format(C.mvp.horas) + ' h', Number.isFinite(C.mvp.semanas) ? `cerca de ${fN1.format(C.mvp.semanas)} semanas` : ''], ['Pedidos esperados', num(C.mvp.pedidos), `meta: ${num(n(Mv.metaPedidos))}`],
+      ['Receita do teste', brl0(C.mvp.receita), ''], ['CAC no teste', brl(C.mvp.cac), 'verba ÷ pedidos'], ['No investimento inicial', S.investimento.incluirMvp ? 'Incluído' : 'Não incluído', '']]);
+    sub('Escopo e priorização');
+    table(['No MVP', 'Item', 'Prioridade', 'Horas', 'Custo direto', 'Total'], C.mvp.feats.map(f => [f.incluir ? 'Sim' : 'Não', f.nome, f.prio, fN1.format(n(f.horas)), brl(n(f.custo)), brl(f.total)]), { num: [3, 4, 5], cols: { 0: { cellWidth: 16 } } });
+
+    /* 4. produtos */
+    section('Produtos e formação de preço');
+    table(['Premissa', 'Valor'], [['Impostos sobre a venda', pct(n(S.premissas.impostosPct) / 100, 2)], ['Comissão de vendas', pct(n(S.premissas.comissaoPct) / 100, 2)], ['Taxa média dos canais', pct(C.taxaCanais, 2)], ['Total de custos variáveis sobre a venda', pct(C.varPct, 2)], ['Rateio de custos fixos no preço', pct(C.rateioPct, 2)], ['Custo da hora de mão de obra direta', brl(n(S.operacional.custoHoraMO))]], { num: [1], bold: [3] });
+    sub('Resumo de preços');
+    table(['Produto', 'Custo direto', 'Markup', 'Preço sugerido', 'Preço adotado', 'Margem contrib.', 'Lucro %'], C.prods.map(x => [`${x.p.nome} (${x.p.unidade})`, brl(x.cd), Number.isFinite(x.markup) ? x.markup.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'x' : '—', brl(x.sugerido), brl(x.preco), `${brl(x.mcUnit)} (${pct(x.mcPct)})`, pct(x.margemReal)]), { num: [1, 2, 3, 4, 5, 6], fs: 8 });
+    C.prods.forEach(x => {
+      sub(`Ficha técnica: ${x.p.nome}`);
+      table(['Insumo', 'Qtd./unidade', 'Unid.', 'Custo unit.', 'Custo'], [
+        ...x.p.insumos.map(i => [i.nome, String(n(i.qtd)).replace('.', ','), i.unid, brl(n(i.custo)), brl(n(i.qtd) * n(i.custo))]),
+        ['Mão de obra direta', fN1.format(n(x.p.minutosMO)) + ' min', '', '', brl(x.mo)], ['Embalagem + outros', '', '', '', brl(n(x.p.embalagem) + n(x.p.outros))],
+        ['Custo direto unitário', '', '', '', brl(x.cd)], ['Preço de venda adotado', '', '', '', brl(x.preco)]
+      ], { num: [1, 3, 4], bold: [x.p.insumos.length + 2, x.p.insumos.length + 3], fs: 8 });
+    });
+
+    /* 5. comercial */
+    const Cm = S.comercial;
+    section('Plano comercial');
+    sub('Previsão de vendas');
+    table(['Produto', 'Vendas mês 1', 'Cresc. a.m.', 'Preço', 'Unid. ano 1', 'Receita ano 1'], C.prods.map((x, i) => [x.p.nome, num(n(x.p.vendasMes1)), pct(n(x.p.crescimentoPct) / 100), brl(x.preco), num(sum(C.rows.filter(r => r.ano === 1), r => r.porProd[i].q)), brl0(sum(C.rows.filter(r => r.ano === 1), r => r.porProd[i].r))]), { num: [1, 2, 3, 4, 5] });
+    para('', `Crescimento aplicado até o mês ${num(n(S.premissas.mesesCrescimento))}; depois o volume estabiliza e só varia com a sazonalidade e o reajuste anual de ${pct(n(S.premissas.inflacaoAnual) / 100)}.`);
+    sub('Canais de venda');
+    table(['Canal', 'Participação', 'Taxa'], [...Cm.canais.map(c => [c.canal, pct(n(c.part) / 100), pct(n(c.taxa) / 100, 2)]), ['Média ponderada', pct(sum(Cm.canais, c => c.part) / 100), pct(C.taxaCanais, 2)]], { num: [1, 2], bold: [Cm.canais.length] });
+    sub('Sazonalidade (100% = mês normal)');
+    table(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'], [Cm.sazonalidade.map(v => fN.format(n(v)) + '%')], { fs: 8, cols: Object.fromEntries([...Array(12).keys()].map(i => [i, { halign: 'center' }])) });
+    sub('Metas mensais do ano 1');
+    const r12 = C.rows.slice(0, 12);
+    table(['Produto', ...r12.map(r => r.label)], [...C.prods.map((x, i) => [x.p.nome, ...r12.map(r => num(r.porProd[i].q))]), ['Receita', ...r12.map(r => kbrl(r.receita).replace('R$ ', ''))]], { fs: 6.5, pad: 1.4, num: [...Array(12).keys()].map(i => i + 1), bold: [C.prods.length], cols: { 0: { cellWidth: 26 } } });
+    para('Política comercial', Cm.politica); para('Prazos de recebimento', Cm.prazoRecebimento); para('Metas qualitativas', Cm.metas);
+
+    /* 6. marketing */
+    const Mk = S.marketing;
+    section('Plano de marketing');
+    para('Público-alvo', Mk.publico); para('Persona', Mk.persona); para('Posicionamento', Mk.posicionamento);
+    sub('Composto de marketing (4 Ps)');
+    boxes([['Produto', Mk.produto], ['Preço', Mk.preco], ['Praça', Mk.praca], ['Promoção', Mk.promocao]], 2);
+    sub('Concorrentes');
+    table(['Concorrente', 'Preço', 'Pontos fortes', 'Pontos fracos'], Mk.concorrentes.map(c => [c.nome, c.preco, c.fortes, c.fracos]), { cols: { 0: { fontStyle: 'bold', cellWidth: 34 }, 1: { cellWidth: 28 } } });
+    sub('Orçamento mensal');
+    table(['Ação', 'Canal', 'Valor por mês'], [...Mk.orcamento.map(o => [o.acao, o.canal, brl(n(o.valor))]), ['Total', '', brl(C.mkt)]], { num: [2], bold: [Mk.orcamento.length] });
+    sub('Aquisição e retenção');
+    kpis([['CAC', brl(C.cac), 'verba ÷ novos clientes'], ['LTV', brl(C.ltv), 'ticket × frequência × anos × MC%'], ['LTV / CAC', Number.isFinite(C.ltvCac) ? fN1.format(C.ltvCac) + 'x' : '—', 'meta: 3x ou mais']]);
+
+    /* 7. operacional */
+    const O = S.operacional;
+    section('Plano operacional');
+    kpis([['Custo fixo mensal', brl0(C.fixoTotal), 'folha + fixos + marketing + depreciação'], ['Folha com encargos', brl0(C.folha), `${num(sum(O.equipe, e => e.qtd))} pessoas`], ['Uso da capacidade', n(O.capacidadeMensal) > 0 ? pct(C.maxUnid / n(O.capacidadeMensal), 0) : '—', `pico de ${num(C.maxUnid)} un/mês`]]);
+    para('Localização e instalações', O.localizacao);
+    para('Processo operacional', O.processos);
+    sub('Equipe');
+    table(['Cargo', 'Qtd.', 'Salário', 'Custo com encargos'], [...O.equipe.map(e => [e.cargo, num(n(e.qtd)), brl(n(e.salario)), brl(n(e.qtd) * n(e.salario) * (1 + n(O.encargosPct) / 100))]), ['Total (encargos de ' + pct(n(O.encargosPct) / 100, 0) + ')', '', '', brl(C.folha)]], { num: [1, 2, 3], bold: [O.equipe.length] });
+    sub('Custos fixos mensais');
+    table(['Item', 'Valor por mês'], [...O.custosFixos.map(c => [c.item, brl(n(c.valor))]), ['Total', brl(C.fixosItens)]], { num: [1], bold: [O.custosFixos.length] });
+    sub('Fornecedores');
+    table(['Fornecedor', 'O que fornece', 'Prazo', 'Condição'], O.fornecedores.map(f => [f.nome, f.item, f.prazo, f.condicao]));
+
+    /* 8. investimento */
+    const I = S.investimento;
+    section('Investimento inicial');
+    kpis([['Investimento total', brl0(C.inv.total), ''], ['Capital próprio', brl0(C.inv.proprio), pct(C.inv.proprio / C.inv.total, 0) + ' do total'], ['Financiado', brl0(C.inv.fin), C.inv.fin > 0 ? `${num(n(I.fin.prazo))}x · ${pct(n(I.fin.taxa) / 100, 2)} a.m.` : '']]);
+    sub('Composição');
+    table(['Grupo', 'Valor', '% do total'], [['Investimentos fixos', brl0(C.inv.fixos), pct(C.inv.fixos / C.inv.total)], ['Despesas pré-operacionais', brl0(C.inv.preop), pct(C.inv.preop / C.inv.total)], [`Capital de giro (${num(n(I.mesesGiro))} meses de custos fixos)`, brl0(C.inv.giro), pct(C.inv.giro / C.inv.total)], ['MVP', brl0(C.inv.mvp), pct(C.inv.mvp / C.inv.total)], ['Total', brl0(C.inv.total), '100%']], { num: [1, 2], bold: [4] });
+    sub('Investimentos fixos');
+    table(['Item', 'Qtd.', 'Valor unit.', 'Vida útil', 'Total'], [...I.fixos.map(f => [f.item, num(n(f.qtd)), brl(n(f.valor)), n(f.vida) + ' anos', brl(n(f.qtd) * n(f.valor))]), ['Total', '', '', `deprec. ${brl(C.deprec)}/mês`, brl(C.inv.fixos)]], { num: [1, 2, 3, 4], bold: [I.fixos.length] });
+    sub('Despesas pré-operacionais');
+    table(['Item', 'Valor'], [...I.preop.map(p => [p.item, brl(n(p.valor))]), ['Total', brl(C.inv.preop)]], { num: [1], bold: [I.preop.length] });
+    if (C.inv.fin > 0) {
+      sub('Financiamento');
+      table(['Condição', 'Valor'], [['Valor financiado', brl0(C.inv.fin)], ['Juros', pct(n(I.fin.taxa) / 100, 2) + ' ao mês'], ['Prazo total', num(n(I.fin.prazo)) + ' meses'], ['Carência (só juros)', num(C.inv.fCar) + ' meses'], ['Parcela após a carência', brl(C.inv.pmt)], ['Juros totais pagos', brl0(sum(C.rows, r => r.juros))]], { num: [1] });
+    }
+
+    /* 9. financeiro */
+    const P = S.premissas;
+    section('Plano financeiro');
+    table(['Premissa', 'Valor'], [['TMA (taxa mínima de atratividade)', pct(n(P.tmaAnual) / 100) + ' a.a.'], ['Inflação / reajuste anual', pct(n(P.inflacaoAnual) / 100)], ['Horizonte da análise', C.H + ' meses'], ['IR/CSLL sobre o lucro', pct(n(P.irPct) / 100)]], { num: [1] });
+    sub('Demonstração de resultado (DRE) anual');
+    table(['Conta', ...C.anos.map(a => 'Ano ' + a.ano + (a.meses < 12 ? ` (${a.meses}m)` : ''))], D.dre.map(r => [r.l, ...r.vals]), { num: C.anos.map((_, i) => i + 1), bold: D.dre.map((r, i) => r.b ? i : -1).filter(i => i >= 0), fs: C.anos.length > 6 ? 6.5 : 8, cols: { 0: { cellWidth: 52 } } });
+    image(G.receita, CW * 0.45, 'Receita bruta × custos totais por mês');
+    image(G.anual, CW * 0.45, 'Receita bruta e lucro líquido por ano');
+
+    /* 10. viabilidade */
+    section('Análise de viabilidade');
+    {
+      ensure(24);
+      doc.setFillColor(...vc.map(c => Math.round(c + (255 - c) * 0.88)));
+      font(10); const rl = doc.splitTextToSize(T(D.resumo), CW - 62);
+      const bh = Math.max(20, rl.length * 5 + 10);
+      doc.roundedRect(M, y, CW, bh, 2, 2, 'F');
+      font(15, 'bold', vc); doc.text(T(D.verdict), M + 6, y + bh / 2 + 2);
+      font(10, 'normal', INK); doc.text(rl, M + 58, y + 7.5, { lineHeightFactor: 1.4 });
+      y += bh + 8;
+    }
+    kpis([['VPL', brl0(C.vpl), 'valor criado acima da TMA'], ['TIR', Number.isFinite(C.tirA) ? pct(C.tirA) + ' a.a.' : '—', Number.isFinite(C.tirM) ? pct(C.tirM, 2) + ' a.m.' : ''], ['Payback simples', Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna', Number.isFinite(C.pb) ? fN1.format(C.pb / 12) + ' anos' : ''],
+      ['Payback descontado', Number.isFinite(C.pbD) ? fN1.format(C.pbD) + ' meses' : 'não retorna', ''], ['Rentabilidade', pct(C.rentab) + ' a.a.', 'lucro médio anual ÷ investimento'], ['ROI no horizonte', pct(C.roi, 0), `em ${C.H} meses`]]);
+    sub('Critérios avaliados');
+    table(['Critério', 'Resultado', 'Status', 'Observação'], C.checks.map(c => [c.nome, c.val, D.statusTxt[c.ok], c.info]), { status: 2, fs: 8, cols: { 0: { cellWidth: 50 }, 1: { cellWidth: 32 }, 2: { cellWidth: 18 } } });
+    sub('Ponto de equilíbrio (média mensal do ano 1)');
+    table(['Indicador', 'Valor'], [['PE contábil', brl0(C.peR) + '/mês'], ['PE econômico (inclui a TMA)', brl0(C.peEcon) + '/mês'], ['Receita média prevista', brl0(C.receitaMes1) + '/mês'], ['Margem de segurança', pct(C.margemSeg)], ['Margem de contribuição', pct(C.mcPct1)], ['Primeiro mês com lucro operacional', C.mesEquilibrio ? 'mês ' + C.mesEquilibrio : 'não atinge'],
+      ...C.prods.map((x, i) => [`Volume no PE: ${x.p.nome}`, `${num(C.peUnid[i])} ${x.p.unidade}/mês (${num(C.peUnid[i] / 26)}/dia)`])], { num: [1] });
+    image(G.payback, CW * 0.45, 'Tempo de retorno: fluxo de caixa acumulado (meses)');
+
+    /* cabeçalho e rodapé */
+    const total = doc.getNumberOfPages();
+    for (let p = 2; p <= total; p++) {
+      doc.setPage(p);
+      if (logo) { const d = fit(lw, lh, 28, 9); doc.addImage(logo, 'PNG', M, 10, d.w, d.h, undefined, 'FAST'); }
+      else { font(9, 'bold', BR); doc.text(T(D.E.nome), M, 16); }
+      font(8, 'normal', MUT); doc.text(T(`Plano de negócio  ·  ${D.E.nome}`), W - M, 16, { align: 'right' });
+      doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, 21, W - M, 21);
+      doc.line(M, H - 14, W - M, H - 14);
+      font(7.5, 'normal', MUT); doc.text(T(dataHoje()), M, H - 9); doc.text(`${p} / ${total}`, W - M, H - 9, { align: 'right' });
+    }
+    doc.save(fileBase() + '-plano-de-negocio.pdf');
+    toast('PDF gerado');
+  } catch (e) { console.error(e); toast('Não foi possível gerar o PDF: ' + e.message); }
+  finally { unbusy(btn); }
+}
+
+/* ============================================================
+   PowerPoint
+   ============================================================ */
+async function gerarPPT(btn) {
+  busy(btn, 'Gerando PowerPoint…');
+  try {
+    await loadScript(LIBS.pptx);
+    const D = reportData();
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_WIDE'; // 13,33 × 7,5 pol
+    pptx.title = 'Plano de negócio · ' + (D.E.nome || ''); pptx.company = D.E.nome || ''; pptx.author = D.E.responsavel || '';
+    const SW = 13.333, X = 0.6, CW = SW - 2 * X;
+    const BR = rgbHex(D.cor), TINT = rgbHex(mix(D.cor, 0.9)), TINT2 = rgbHex(mix(D.cor, 0.95));
+    const INK = '15201B', INK2 = '48564E', MUT = '76837B', LINE = 'D6DDD7', WHITE = 'FFFFFF';
+    const F = 'Calibri';
+    const logo = S.empresa.logo, lw = n(S.empresa.logoW) || 3, lh = n(S.empresa.logoH) || 1;
+    const SC = { good: '1D7F46', warn: '9A6200', bad: 'B83535' }, SB = { good: 'DCF1E3', warn: 'FBECC9', bad: 'F8DDDD' };
+
+    const masterObjs = [
+      { rect: { x: 0, y: 0, w: SW, h: 0.1, fill: { color: BR } } },
+      { line: { x: X, y: 7.0, w: CW, h: 0, line: { color: LINE, width: 0.75 } } },
+      { text: { text: `Plano de negócio · ${D.E.nome || ''}`, options: { x: X, y: 7.05, w: 8, h: 0.3, fontFace: F, fontSize: 10, color: MUT } } }
+    ];
+    if (logo) { const d = fit(lw, lh, 1.6, 0.6); masterObjs.push({ image: { data: logo, x: SW - X - d.w, y: 0.35, w: d.w, h: d.h } }); }
+    pptx.defineSlideMaster({ title: 'CONTEUDO', background: { color: WHITE }, objects: masterObjs, slideNumber: { x: SW - X - 0.6, y: 7.05, w: 0.6, h: 0.3, fontFace: F, fontSize: 10, color: MUT, align: 'right' } });
+
+    let secN = 0;
+    const slide = (title, eyebrow) => {
+      const s = pptx.addSlide({ masterName: 'CONTEUDO' });
+      s.addText((eyebrow || String(++secN).padStart(2, '0') + ' · PLANO DE NEGÓCIO').toUpperCase(), { x: X, y: 0.35, w: 9, h: 0.3, fontFace: F, fontSize: 11, bold: true, color: BR, charSpacing: 2, margin: 0 });
+      s.addText(title, { x: X, y: 0.65, w: 10, h: 0.7, fontFace: F, fontSize: 30, bold: true, color: INK, margin: 0 });
+      return s;
+    };
+    const cards = (s, items, { x = X, y = 1.7, w = CW, cols = 3, h = 1.15, gap = 0.2 } = {}) => {
+      const bw = (w - gap * (cols - 1)) / cols;
+      items.forEach(([l, v, d], i) => {
+        const cx = x + (i % cols) * (bw + gap), cy = y + Math.floor(i / cols) * (h + gap);
+        s.addShape(pptx.ShapeType.roundRect, { x: cx, y: cy, w: bw, h, fill: { color: TINT2 }, line: { color: LINE, width: 0.75 }, rectRadius: 0.08 });
+        s.addText([
+          { text: l.toUpperCase(), options: { fontSize: 10, bold: true, color: MUT, charSpacing: 1, breakLine: true } },
+          { text: v, options: { fontSize: 22, bold: true, color: INK, breakLine: !!d } },
+          ...(d ? [{ text: d, options: { fontSize: 10.5, color: INK2 } }] : [])
+        ], { x: cx + 0.15, y: cy + 0.08, w: bw - 0.3, h: h - 0.16, fontFace: F, valign: 'middle', margin: 0, paraSpaceAfter: 2 });
+      });
+    };
+    const textBoxes = (s, items, { x = X, y = 1.7, w = CW, cols = 2, h = 2.4, gap = 0.25, fs = 13 } = {}) => {
+      const bw = (w - gap * (cols - 1)) / cols;
+      items.forEach(([t, txt, fill], i) => {
+        const cx = x + (i % cols) * (bw + gap), cy = y + Math.floor(i / cols) * (h + gap);
+        s.addShape(pptx.ShapeType.roundRect, { x: cx, y: cy, w: bw, h, fill: { color: fill || TINT2 }, line: { color: LINE, width: 0.75 }, rectRadius: 0.08 });
+        s.addText([{ text: t.toUpperCase(), options: { fontSize: 11, bold: true, color: BR, charSpacing: 1, breakLine: true } }, { text: txt || '—', options: { fontSize: fs, color: INK } }],
+          { x: cx + 0.2, y: cy + 0.15, w: bw - 0.4, h: h - 0.3, fontFace: F, valign: 'top', margin: 0, paraSpaceAfter: 6, fit: 'shrink' });
+      });
+    };
+    const tbl = (s, head, rows, { x = X, y = 1.7, w = CW, colW, num = [], bold = [], fs = 12, status } = {}) => {
+      const hdr = head.map((h, i) => ({ text: h, options: { bold: true, color: WHITE, fill: { color: BR }, align: num.includes(i) ? 'right' : 'left' } }));
+      const body = rows.map((r, ri) => r.map((c, i) => {
+        const o = { color: INK, align: num.includes(i) ? 'right' : 'left', fill: { color: bold.includes(ri) ? TINT : ri % 2 ? 'F8FAF8' : WHITE }, bold: bold.includes(ri) };
+        if (typeof c === 'string' && /^-R\$|^-\d/.test(c)) o.color = 'B83535';
+        if (status != null && i === status) { o.color = SC[c[1]]; o.bold = true; c = c[0]; }
+        return { text: String(c ?? ''), options: o };
+      }));
+      s.addTable([hdr, ...body], { x, y, w, colW, fontFace: F, fontSize: fs, border: { type: 'solid', color: LINE, pt: 0.75 }, margin: [3, 6, 3, 6], valign: 'middle', autoPage: false });
+    };
+    const chartOpts = (o = {}) => ({
+      x: X, y: 1.6, w: CW, h: 5.1, fontFace: F, showLegend: true, legendPos: 't', legendFontSize: 12, legendColor: INK2,
+      catAxisLabelColor: INK2, valAxisLabelColor: INK2, catAxisLabelFontSize: 11, valAxisLabelFontSize: 11,
+      valAxisLabelFormatCode: '"R$" #,##0', valGridLine: { color: 'E5E9E5', size: 0.75 }, catGridLine: { style: 'none' },
+      catAxisLineShow: true, valAxisLineShow: false, ...o
+    });
+
+    /* capa */
+    {
+      const s = pptx.addSlide();
+      s.background = { color: BR };
+      s.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 5.2, h: 7.5, fill: { color: WHITE } });
+      if (logo) { const d = fit(lw, lh, 3.8, 2.6); s.addImage({ data: logo, x: (5.2 - d.w) / 2, y: (7.5 - d.h) / 2, w: d.w, h: d.h }); }
+      else s.addText(D.E.nome || '', { x: 0.5, y: 3, w: 4.2, h: 1.5, fontFace: F, fontSize: 28, bold: true, color: BR, align: 'center', valign: 'middle' });
+      s.addText('PLANO DE NEGÓCIO', { x: 5.9, y: 2.0, w: 7, h: 0.4, fontFace: F, fontSize: 14, bold: true, color: WHITE, charSpacing: 4, margin: 0 });
+      s.addText(D.E.nome || 'Meu negócio', { x: 5.9, y: 2.45, w: 7, h: 1.5, fontFace: F, fontSize: 44, bold: true, color: WHITE, valign: 'top', margin: 0, fit: 'shrink' });
+      s.addText([D.E.segmento, D.E.cidade].filter(Boolean).join('  ·  '), { x: 5.9, y: 4.0, w: 7, h: 0.45, fontFace: F, fontSize: 18, color: WHITE, margin: 0 });
+      s.addText([D.E.responsavel, dataHoje()].filter(Boolean).join('  ·  '), { x: 5.9, y: 6.5, w: 7, h: 0.4, fontFace: F, fontSize: 13, color: WHITE, margin: 0 });
+    }
+
+    /* sumário */
+    {
+      const s = slide('Sumário executivo');
+      s.addText([{ text: 'O NEGÓCIO', options: { fontSize: 11, bold: true, color: BR, charSpacing: 1, breakLine: true } }, { text: D.E.descricao || '—', options: { fontSize: 14, color: INK, breakLine: true } },
+        { text: ' ', options: { fontSize: 8, breakLine: true } },
+        { text: 'OPORTUNIDADE', options: { fontSize: 11, bold: true, color: BR, charSpacing: 1, breakLine: true } }, { text: D.E.oportunidade || '—', options: { fontSize: 14, color: INK } }],
+        { x: X, y: 1.7, w: 4.4, h: 5.0, fontFace: F, valign: 'top', margin: 0, paraSpaceAfter: 4, fit: 'shrink' });
+      cards(s, D.kpis.slice(0, 6), { x: 5.3, w: SW - 5.3 - X, cols: 2, h: 1.45, gap: 0.2 });
+    }
+    /* identidade */
+    { const s = slide('Missão, visão e valores'); textBoxes(s, [['Missão', D.E.missao], ['Visão', D.E.visao], ['Valores', D.E.valores]], { cols: 3, h: 4.6, fs: 16 }); }
+    /* SWOT */
+    { const s = slide('Análise SWOT'); textBoxes(s, [['Forças', D.E.forcas, 'E6F4EA'], ['Fraquezas', D.E.fraquezas, 'FBEFE0'], ['Oportunidades', D.E.oportunidades, 'E3EEFB'], ['Ameaças', D.E.ameacas, 'FBE5E5']], { cols: 2, h: 2.4 }); }
+    /* MVP */
+    {
+      const s = slide('MVP: produto mínimo viável');
+      s.addText([{ text: 'HIPÓTESE', options: { fontSize: 11, bold: true, color: BR, breakLine: true } }, { text: S.mvp.hipotese || '—', options: { fontSize: 14, color: INK } }], { x: X, y: 1.55, w: CW, h: 0.8, fontFace: F, margin: 0, fit: 'shrink' });
+      const feats = C.mvp.feats.slice(0, 8);
+      tbl(s, ['No MVP', 'Item', 'Prioridade', 'Horas', 'Total'], feats.map(f => [f.incluir ? 'Sim' : 'Não', f.nome, f.prio, fN1.format(n(f.horas)), brl0(f.total)]), { y: 2.5, w: 7.6, colW: [0.9, 3.8, 1.1, 0.8, 1.0], num: [3, 4], fs: 11 });
+      cards(s, [['Custo do MVP', brl0(C.mvp.custo)], ['Esforço', fN.format(C.mvp.horas) + ' h', Number.isFinite(C.mvp.semanas) ? `${fN1.format(C.mvp.semanas)} semanas` : ''], ['Pedidos esperados', num(C.mvp.pedidos), `meta: ${num(n(S.mvp.metaPedidos))}`], ['CAC no teste', brl(C.mvp.cac)]], { x: 8.5, y: 2.5, w: SW - 8.5 - X, cols: 1, h: 0.95, gap: 0.12 });
+    }
+    /* produtos */
+    {
+      const s = slide('Produtos e formação de preço');
+      tbl(s, ['Produto', 'Custo direto', 'Markup', 'Preço adotado', 'Margem contrib.', 'Lucro %'], C.prods.slice(0, 8).map(x => [x.p.nome, brl(x.cd), Number.isFinite(x.markup) ? x.markup.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '×' : '—', brl(x.preco), `${brl(x.mcUnit)} (${pct(x.mcPct)})`, pct(x.margemReal)]), { num: [1, 2, 3, 4, 5], colW: [3.6, 1.6, 1.2, 1.8, 2.4, 1.53] });
+      s.addText(`Preço = custo direto ÷ (1 − ${pct(C.varPct)} de custos variáveis − ${pct(C.rateioPct)} de rateio dos fixos − margem desejada)`, { x: X, y: 6.3, w: CW, h: 0.4, fontFace: F, fontSize: 12, color: INK2, margin: 0 });
+    }
+    {
+      const s = slide('Custo × preço por unidade');
+      s.addChart(pptx.ChartType.bar, [{ name: 'Custo direto', labels: C.prods.map(x => x.p.nome), values: C.prods.map(x => +x.cd.toFixed(2)) }, { name: 'Preço adotado', labels: C.prods.map(x => x.p.nome), values: C.prods.map(x => +(x.preco || 0).toFixed(2)) }],
+        chartOpts({ barDir: 'col', barGrouping: 'clustered', chartColors: ['EB6834', '2A78D6'], valAxisLabelFormatCode: '"R$" #,##0.00', showValue: true, dataLabelFormatCode: '"R$" #,##0.00', dataLabelFontSize: 11, dataLabelColor: INK2, barGapWidthPct: 60 }));
+    }
+    /* comercial */
+    {
+      const s = slide('Plano comercial');
+      const r12 = C.rows.slice(0, 12);
+      s.addChart(pptx.ChartType.bar, [{ name: 'Receita bruta', labels: r12.map(r => r.label), values: r12.map(r => Math.round(r.receita)) }], chartOpts({ x: X, y: 1.6, w: 7.3, h: 5.1, barDir: 'col', chartColors: ['2A78D6'], showLegend: false, showTitle: true, title: 'Receita prevista no ano 1', titleFontSize: 13, titleColor: INK2 }));
+      tbl(s, ['Canal', 'Part.', 'Taxa'], S.comercial.canais.slice(0, 7).map(c => [c.canal, pct(n(c.part) / 100, 0), pct(n(c.taxa) / 100, 1)]), { x: 8.2, y: 1.8, w: SW - 8.2 - X, colW: [2.6, 0.9, 0.93], num: [1, 2], fs: 12 });
+      s.addText([{ text: 'POLÍTICA COMERCIAL', options: { fontSize: 10, bold: true, color: BR, breakLine: true } }, { text: S.comercial.politica || '—', options: { fontSize: 11.5, color: INK } }], { x: 8.2, y: 4.3, w: SW - 8.2 - X, h: 2.4, fontFace: F, valign: 'top', margin: 0, fit: 'shrink' });
+    }
+    /* marketing */
+    {
+      const Mk = S.marketing;
+      const s = slide('Plano de marketing');
+      textBoxes(s, [['Produto', Mk.produto], ['Preço', Mk.preco], ['Praça', Mk.praca], ['Promoção', Mk.promocao]], { cols: 2, w: 8.3, h: 2.4, fs: 13 });
+      cards(s, [['Verba mensal', brl0(C.mkt)], ['CAC', brl(C.cac)], ['LTV', brl(C.ltv)], ['LTV / CAC', Number.isFinite(C.ltvCac) ? fN1.format(C.ltvCac) + '×' : '—', 'meta: 3× ou mais']], { x: 9.2, w: SW - 9.2 - X, cols: 1, h: 1.08, gap: 0.16 });
+    }
+    {
+      const Mk = S.marketing;
+      const s = slide('Público, concorrência e orçamento');
+      s.addText([{ text: 'PÚBLICO-ALVO', options: { fontSize: 10, bold: true, color: BR, breakLine: true } }, { text: Mk.publico || '—', options: { fontSize: 12, color: INK, breakLine: true } }, { text: ' ', options: { fontSize: 6, breakLine: true } }, { text: 'POSICIONAMENTO', options: { fontSize: 10, bold: true, color: BR, breakLine: true } }, { text: Mk.posicionamento || '—', options: { fontSize: 12, color: INK } }], { x: X, y: 1.6, w: CW, h: 1.4, fontFace: F, valign: 'top', margin: 0, fit: 'shrink' });
+      tbl(s, ['Concorrente', 'Preço', 'Pontos fortes', 'Pontos fracos'], Mk.concorrentes.slice(0, 5).map(c => [c.nome, c.preco, c.fortes, c.fracos]), { y: 3.15, w: 7.4, colW: [1.6, 1.3, 2.25, 2.25], fs: 10.5 });
+      tbl(s, ['Ação', 'R$/mês'], [...Mk.orcamento.slice(0, 6).map(o => [o.acao, brl0(n(o.valor))]), ['Total', brl0(C.mkt)]], { x: 8.3, y: 3.15, w: SW - 8.3 - X, colW: [3.03, 1.4], num: [1], bold: [Math.min(6, Mk.orcamento.length)], fs: 11 });
+    }
+    /* operacional */
+    {
+      const O = S.operacional;
+      const s = slide('Plano operacional');
+      cards(s, [['Custo fixo mensal', brl0(C.fixoTotal), 'com marketing e depreciação'], ['Folha com encargos', brl0(C.folha), `${num(sum(O.equipe, e => e.qtd))} pessoas`], ['Uso da capacidade', n(O.capacidadeMensal) > 0 ? pct(C.maxUnid / n(O.capacidadeMensal), 0) : '—', `pico de ${num(C.maxUnid)} un/mês`]], { h: 1.1 });
+      tbl(s, ['Cargo', 'Qtd.', 'Custo c/ encargos'], [...O.equipe.slice(0, 6).map(e => [e.cargo, num(n(e.qtd)), brl0(n(e.qtd) * n(e.salario) * (1 + n(O.encargosPct) / 100))]), ['Total', '', brl0(C.folha)]], { y: 3.1, w: 5.6, colW: [2.9, 0.8, 1.9], num: [1, 2], bold: [Math.min(6, O.equipe.length)], fs: 11 });
+      const cf = O.custosFixos.slice(0, 10);
+      tbl(s, ['Custo fixo', 'R$/mês'], [...cf.map(c => [c.item, brl0(n(c.valor))]), ['Total', brl0(C.fixosItens)]], { x: 6.6, y: 3.1, w: SW - 6.6 - X, colW: [4.2, 1.93], num: [1], bold: [cf.length], fs: 10.5 });
+    }
+    /* investimento */
+    {
+      const s = slide('Investimento inicial');
+      const it = [['Investimentos fixos', C.inv.fixos], ['Pré-operacional', C.inv.preop], ['Capital de giro', C.inv.giro], ['MVP', C.inv.mvp]].filter(x => x[1] > 0);
+      s.addChart(pptx.ChartType.bar, [{ name: 'Valor', labels: it.map(x => x[0]), values: it.map(x => Math.round(x[1])) }], chartOpts({ x: X, y: 1.6, w: 7, h: 5.1, barDir: 'bar', chartColors: [BR], showLegend: false, showValue: true, dataLabelFormatCode: '"R$" #,##0', dataLabelFontSize: 12, dataLabelColor: INK2, catAxisLabelFontSize: 12 }));
+      cards(s, [['Investimento total', brl0(C.inv.total)], ['Capital próprio', brl0(C.inv.proprio), pct(C.inv.proprio / C.inv.total, 0) + ' do total'], ['Financiado', brl0(C.inv.fin), C.inv.fin > 0 ? `${num(n(S.investimento.fin.prazo))}x de ${brl0(C.inv.pmt)} · ${pct(n(S.investimento.fin.taxa) / 100, 2)} a.m.` : 'sem financiamento']], { x: 8.0, w: SW - 8.0 - X, cols: 1, h: 1.45, gap: 0.2 });
+    }
+    /* DRE */
+    {
+      const s = slide('Demonstração de resultado (DRE)');
+      const anos = C.anos.slice(0, 6);
+      const rows = D.dre.filter(r => r.l !== 'Saldo de caixa no fim do ano');
+      const fw = (CW - 3.6) / anos.length;
+      tbl(s, ['Conta', ...anos.map(a => 'Ano ' + a.ano)], rows.map(r => [r.l, ...r.vals.slice(0, 6)]), { colW: [3.6, ...anos.map(() => fw)], num: anos.map((_, i) => i + 1), bold: rows.map((r, i) => r.b ? i : -1).filter(i => i >= 0), fs: 11 });
+    }
+    /* gráficos */
+    {
+      const s = slide('Receita × custos totais');
+      const step = C.H > 36 ? 3 : 1, rs = C.rows.filter((r, i) => i % step === 0);
+      s.addChart(pptx.ChartType.line, [{ name: 'Receita bruta', labels: rs.map(r => r.label), values: rs.map(r => Math.round(r.receita)) }, { name: 'Custos totais', labels: rs.map(r => r.label), values: rs.map(r => Math.round(r.custosTot)) }],
+        chartOpts({ chartColors: ['2A78D6', 'EB6834'], lineSize: 3, lineDataSymbol: 'none', catAxisLabelFrequency: 2 }));
+    }
+    {
+      const s = slide('Tempo de retorno do investimento');
+      const lbl = ['0', ...C.rows.map(r => String(r.m))];
+      s.addChart(pptx.ChartType.line, [{ name: 'Acumulado simples', labels: lbl, values: C.fluxos.map((_, i) => Math.round(i === 0 ? C.fluxos[0] : C.rows[i - 1].acc)) }, { name: 'Acumulado descontado', labels: lbl, values: C.fluxos.map((_, i) => Math.round(i === 0 ? C.fluxos[0] : C.rows[i - 1].accD)) }],
+        chartOpts({ w: 8.6, chartColors: ['2A78D6', 'EB6834'], lineSize: 3, lineDataSymbol: 'none', catAxisLabelFrequency: 6, catAxisTitle: 'meses', showCatAxisTitle: true, catAxisTitleFontSize: 11, catAxisTitleColor: MUT }));
+      cards(s, [['Payback simples', Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna', Number.isFinite(C.pb) ? fN1.format(C.pb / 12) + ' anos' : ''], ['Payback descontado', Number.isFinite(C.pbD) ? fN1.format(C.pbD) + ' meses' : 'não retorna', `pela TMA de ${pct(n(S.premissas.tmaAnual) / 100)} a.a.`], ['Equilíbrio operacional', C.mesEquilibrio ? 'mês ' + C.mesEquilibrio : 'não atinge', 'primeiro mês com lucro']], { x: 9.5, w: SW - 9.5 - X, cols: 1, h: 1.5, gap: 0.2 });
+    }
+    /* viabilidade */
+    {
+      const s = slide('Análise de viabilidade');
+      cards(s, [['VPL', brl0(C.vpl)], ['TIR', Number.isFinite(C.tirA) ? pct(C.tirA) + ' a.a.' : '—'], ['Payback', Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna'], ['Ponto de equilíbrio', brl0(C.peR) + '/mês'], ['Margem de segurança', pct(C.margemSeg)], ['Rentabilidade', pct(C.rentab) + ' a.a.']], { x: X, w: 5.4, cols: 2, h: 1.5, gap: 0.2 });
+      tbl(s, ['Critério', 'Resultado', 'Status'], C.checks.map(c => [c.nome, c.val, [D.statusTxt[c.ok], c.ok]]), { x: 6.3, w: SW - 6.3 - X, colW: [3.33, 1.9, 1.2], status: 2, fs: 11 });
+    }
+    /* conclusão */
+    {
+      const s = slide('Conclusão');
+      const v = C.verdict;
+      s.addShape(pptx.ShapeType.roundRect, { x: X, y: 1.8, w: CW, h: 3.2, fill: { color: SB[v] }, line: { color: SB[v] }, rectRadius: 0.1 });
+      s.addText(D.verdict, { x: X + 0.4, y: 2.1, w: CW - 0.8, h: 0.9, fontFace: F, fontSize: 36, bold: true, color: SC[v], margin: 0 });
+      s.addText(D.resumo, { x: X + 0.4, y: 3.05, w: CW - 0.8, h: 1.7, fontFace: F, fontSize: 18, color: INK, valign: 'top', margin: 0, fit: 'shrink' });
+      s.addText(`Investimento de ${brl0(C.inv.total)} · VPL de ${brl0(C.vpl)} · TIR de ${Number.isFinite(C.tirA) ? pct(C.tirA) + ' a.a.' : '—'} · payback em ${Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'mais que o horizonte'}`, { x: X, y: 5.4, w: CW, h: 0.5, fontFace: F, fontSize: 14, color: INK2, margin: 0 });
+    }
+    await pptx.writeFile({ fileName: fileBase() + '-plano-de-negocio.pptx' });
+    toast('PowerPoint gerado');
+  } catch (e) { console.error(e); toast('Não foi possível gerar o PowerPoint: ' + e.message); }
+  finally { unbusy(btn); }
+}
 </script>
 </body>
 </html>
