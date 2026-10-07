@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planejador de Negócio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: livro-razão em duas colunas — índice de abas à esquerda, folha de trabalho à direita. */
+:root {
+  --bg: #f2f4f1;
+  --surface: #ffffff;
+  --surface-2: #e9eee9;
+  --ink: #15201b;
+  --ink-2: #48564e;
+  --muted: #76837b;
+  --line: #d6ddd7;
+  --accent: #0e6a54;
+  --accent-soft: #d5ebe3;
+  --accent-ink: #ffffff;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --good: #1d7f46;
+  --good-bg: #dcf1e3;
+  --warn: #9a6200;
+  --warn-bg: #fbecc9;
+  --bad: #b83535;
+  --bad-bg: #f8dddd;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #171e1b; --surface-2: #1e2723; --ink: #ecf2ee; --ink-2: #b4c1b9;
+    --muted: #84918a; --line: #2b3631; --accent: #3bbd96; --accent-soft: #173a30; --accent-ink: #08130f;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --good: #5fd08f; --good-bg: #163524; --warn: #f0b443; --warn-bg: #3a2c0e; --bad: #f07a7a; --bad-bg: #3d1a1a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #171e1b; --surface-2: #1e2723; --ink: #ecf2ee; --ink-2: #b4c1b9;
+  --muted: #84918a; --line: #2b3631; --accent: #3bbd96; --accent-soft: #173a30; --accent-ink: #08130f;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --good: #5fd08f; --good-bg: #163524; --warn: #f0b443; --warn-bg: #3a2c0e; --bad: #f07a7a; --bad-bg: #3d1a1a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--f-body); }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.55rem; }
+h3 { font-size: 1.05rem; }
+p { margin: 0; }
+.num, td.n, th.n { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--f-mono); }
+
+.app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+.side { background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+.brand { display: flex; flex-direction: column; gap: 2px; padding-inline: 8px; }
+.brand small { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.brand strong { font-family: var(--f-display); font-size: 1.15rem; line-height: 1.2; }
+nav.tabs { display: flex; flex-direction: column; gap: 2px; }
+nav.tabs button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; color: var(--ink-2); font-weight: 500; }
+nav.tabs button .k { font-family: var(--f-mono); font-size: 11px; color: var(--muted); width: 18px; }
+nav.tabs button:hover { background: var(--surface-2); color: var(--ink); }
+nav.tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--ink); }
+nav.tabs button[aria-selected="true"] .k { color: var(--accent); }
+nav.tabs button:focus-visible, .btn:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+
+main { padding-block: 24px 64px; padding-inline: clamp(16px, 3vw, 40px); min-width: 0; }
+.head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.head .eyebrow { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.head p.lead { color: var(--ink-2); max-width: 70ch; margin-top: 4px; }
+.example-note { font-size: 12px; color: var(--warn); background: var(--warn-bg); padding: 6px 10px; border-radius: 6px; }
+
+.stack { display: flex; flex-direction: column; gap: 20px; }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.g4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.panel > header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.panel > header p { color: var(--muted); font-size: 12.5px; }
+.hint { color: var(--muted); font-size: 12.5px; }
+
+label.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+label.f > span { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+label.f > small { color: var(--muted); font-size: 11.5px; }
+.in { position: relative; display: flex; align-items: center; }
+.in em { position: absolute; right: 9px; font-style: normal; color: var(--muted); font-size: 12px; pointer-events: none; }
+.in em.pre { left: 9px; right: auto; }
+.in em.pre + input { padding-left: 30px; }
+input, textarea, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; min-width: 0; }
+input[type="number"] { font-variant-numeric: tabular-nums; text-align: right; padding-right: 34px; }
+input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+textarea { resize: vertical; min-height: 74px; line-height: 1.45; }
+input:hover, textarea:hover, select:hover { border-color: var(--muted); }
+
+.tw { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); padding: 7px 8px; white-space: nowrap; }
+td { padding: 4px 6px; border-top: 1px solid var(--line); vertical-align: middle; }
+td.n, th.n { text-align: right; }
+td.out { padding: 7px 8px; white-space: nowrap; }
+td input, td select { background: transparent; border-color: transparent; padding: 5px 6px; }
+td input[type="number"] { padding-right: 6px; }
+td input:hover, td select:hover { border-color: var(--line); }
+td input:focus, td select:focus { background: var(--bg); }
+tr.total td { font-weight: 600; background: var(--surface-2); }
+tr.sub td { color: var(--ink-2); }
+table.ro td { padding: 7px 8px; white-space: nowrap; }
+table.ro td:first-child { white-space: normal; min-width: 180px; }
+.neg { color: var(--bad); }
+.pos { color: var(--good); }
+
+.btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; font-size: 13px; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); padding: 4px 8px; }
+.btn.ghost:hover { color: var(--bad); }
+.btn.sm { font-size: 12px; padding: 5px 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kpi .l { font-size: 11px; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; }
+.kpi .v { font-family: var(--f-display); font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; overflow-wrap: anywhere; }
+.kpi .d { font-size: 12px; color: var(--ink-2); }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.good { color: var(--good); background: var(--good-bg); }
+.pill.warn { color: var(--warn); background: var(--warn-bg); }
+.pill.bad { color: var(--bad); background: var(--bad-bg); }
+
+.verdict { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; padding: 18px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); }
+.verdict .badge { font-family: var(--f-display); font-weight: 700; font-size: 1.3rem; padding: 10px 16px; border-radius: 8px; }
+.verdict .badge.good { color: var(--good); background: var(--good-bg); }
+.verdict .badge.warn { color: var(--warn); background: var(--warn-bg); }
+.verdict .badge.bad { color: var(--bad); background: var(--bad-bg); }
+
+.checks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; }
+.checks li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: center; }
+.checks li:first-child { border-top: 0; }
+.checks li small { grid-column: 1 / -1; color: var(--muted); }
+
+.chart { position: relative; height: 270px; }
+.chart.tall { height: 320px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
+.prod { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.prod > summary { list-style: none; cursor: pointer; padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; justify-content: space-between; }
+.prod > summary::-webkit-details-marker { display: none; }
+.prod > summary h3::before { content: "▸ "; color: var(--muted); }
+.prod[open] > summary h3::before { content: "▾ "; }
+.prod > summary .meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12.5px; color: var(--ink-2); }
+.prod > summary .meta b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.prod .body { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+.breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.breakdown div { background: var(--surface-2); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.breakdown span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.breakdown b { font-variant-numeric: tabular-nums; font-size: 15px; }
+.breakdown .hl { background: var(--accent-soft); }
+
+.saz { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 6px; font-size: 13px; z-index: 10; }
+.mobilebar { display: none; }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .side { position: sticky; top: env(safe-area-inset-top, 0px); height: auto; z-index: 5; padding: 10px 16px; gap: 8px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand { padding: 0; }
+  .brand small { display: none; }
+  nav.tabs { flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  nav.tabs button { white-space: nowrap; padding: 6px 10px; }
+  nav.tabs button .k { display: none; }
+  .side-foot { display: none; }
+  .mobilebar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
+  .verdict { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .view { animation: in .18s ease-out; }
+  @keyframes in { from { transform: translateY(4px); } to { transform: none; } }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><small>Plano de negócio</small><strong id="brandName">—</strong></div>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Seções do plano"></nav>
+    <div class="side-foot" id="sideFoot"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+/* ============================================================
+   Plano de Negócio — estado, cálculos e interface
+   ============================================================ */
+const STORE_KEY = 'plano-negocio-v1';
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+function exemplo() {
+  return {
+    _exemplo: true,
+    empresa: {
+      nome: 'Doce Ponto Brigaderia', segmento: 'Confeitaria artesanal', cidade: 'Recife – PE',
+      responsavel: 'Sócia-fundadora', inicio: '2027-01', formaJuridica: 'ME – Simples Nacional',
+      descricao: 'Brigaderia de bairro com balcão, encomendas para festas e delivery por aplicativo. Produção própria diária com chocolate nobre.',
+      missao: 'Transformar momentos comuns em pequenas celebrações com doces artesanais feitos no dia.',
+      visao: 'Ser a brigaderia mais lembrada da Zona Norte em 3 anos e abrir a segunda unidade.',
+      valores: 'Ingrediente de verdade, pontualidade nas encomendas, atendimento próximo.',
+      oportunidade: 'Crescimento de encomendas para festas pequenas e presentes corporativos; poucas opções premium no bairro.',
+      forcas: 'Receita própria testada; custo de insumos negociado; presença ativa no Instagram.',
+      fraquezas: 'Marca nova; dependência da confeiteira principal; capacidade limitada do forno.',
+      oportunidades: 'Datas sazonais (Páscoa, Dia das Mães, Natal); kits corporativos; parcerias com buffets.',
+      ameacas: 'Alta do cacau; concorrência de produção caseira; taxas altas de aplicativos de entrega.'
+    },
+    premissas: { impostosPct: 6, comissaoPct: 0, tmaAnual: 15, inflacaoAnual: 4.5, horizonte: 60, mesesCrescimento: 24, irPct: 0 },
+    produtos: [
+      { id: uid(), nome: 'Brigadeiro gourmet', unidade: 'un', margemPct: 12, vendasMes1: 2600, crescimentoPct: 3, precoManual: 4.5, minutosMO: 1.2, embalagem: 0, outros: 0.05,
+        insumos: [
+          { nome: 'Leite condensado', qtd: 0.04, unid: 'lata', custo: 7.5 },
+          { nome: 'Chocolate 50% cacau', qtd: 0.008, unid: 'kg', custo: 45 },
+          { nome: 'Manteiga', qtd: 0.002, unid: 'kg', custo: 50 },
+          { nome: 'Granulado belga', qtd: 0.004, unid: 'kg', custo: 80 },
+          { nome: 'Forminha nº 4', qtd: 1, unid: 'un', custo: 0.08 }
+        ] },
+      { id: uid(), nome: 'Caixa presente 12 un', unidade: 'cx', margemPct: 15, vendasMes1: 240, crescimentoPct: 4, precoManual: 65, minutosMO: 6, embalagem: 5.1, outros: 0,
+        insumos: [
+          { nome: 'Brigadeiros (insumos)', qtd: 12, unid: 'un', custo: 1.16 },
+          { nome: 'Cartão personalizado', qtd: 1, unid: 'un', custo: 0.45 }
+        ] },
+      { id: uid(), nome: 'Bolo de pote 250 ml', unidade: 'un', margemPct: 12, vendasMes1: 650, crescimentoPct: 3, precoManual: 16, minutosMO: 3, embalagem: 1.05, outros: 0,
+        insumos: [
+          { nome: 'Massa de chocolate', qtd: 0.09, unid: 'kg', custo: 20 },
+          { nome: 'Recheio de brigadeiro', qtd: 0.11, unid: 'kg', custo: 22 }
+        ] }
+    ],
+    comercial: {
+      canais: [
+        { canal: 'Balcão (cartão/Pix)', part: 45, taxa: 1.5 },
+        { canal: 'Delivery por aplicativo', part: 30, taxa: 23 },
+        { canal: 'Encomendas WhatsApp', part: 25, taxa: 1 }
+      ],
+      sazonalidade: [85, 90, 100, 130, 125, 100, 95, 100, 95, 110, 105, 145],
+      politica: 'Encomendas com 50% de sinal via Pix e saldo na retirada. Pedido mínimo de 25 unidades para festas. Desconto de 8% para pedidos corporativos acima de 20 caixas.',
+      metas: 'Ano 1: 300 clientes recorrentes e 40 encomendas de festa por mês até o 6º mês.',
+      prazoRecebimento: 'Balcão: D+1 (cartão), D+0 (Pix). Aplicativo: repasse semanal.'
+    },
+    marketing: {
+      publico: 'Mulheres e homens de 22 a 45 anos, classes B e C, moradores num raio de 5 km; empresas que compram presentes de fim de ano.',
+      persona: 'Camila, 32 anos, analista, organiza aniversários dos filhos e procura doces bonitos com entrega pontual.',
+      posicionamento: 'Brigadeiro premium com preço acessível, feito no dia, com embalagens prontas para presentear.',
+      produto: 'Linha fixa de 12 sabores, caixas presenteáveis, bolos de pote e kits sazonais.',
+      preco: 'Formado por markup sobre custo direto; referência abaixo das grifes de shopping e acima da padaria.',
+      praca: 'Loja de bairro, delivery por aplicativo num raio de 6 km e retirada de encomendas.',
+      promocao: 'Instagram com conteúdo diário, anúncios locais, degustação em eventos e parcerias com influenciadores do bairro.',
+      concorrentes: [
+        { nome: 'Grife de shopping', preco: 'R$ 6,50/un', fortes: 'Marca forte, ponto nobre', fracos: 'Preço alto, sem encomenda personalizada' },
+        { nome: 'Padaria do bairro', preco: 'R$ 2,50/un', fortes: 'Conveniência, preço', fracos: 'Qualidade baixa, sem embalagem' },
+        { nome: 'Doceiras caseiras', preco: 'R$ 2,00–3,00/un', fortes: 'Preço, relacionamento', fracos: 'Sem regularidade, sem nota fiscal' }
+      ],
+      orcamento: [
+        { acao: 'Anúncios patrocinados', canal: 'Instagram / Facebook', valor: 800 },
+        { acao: 'Parcerias com influenciadores', canal: 'Instagram', valor: 500 },
+        { acao: 'Degustação em eventos', canal: 'Presencial', valor: 300 },
+        { acao: 'Material impresso e brindes', canal: 'Loja', valor: 200 }
+      ],
+      novosClientes: 120, ticket: 38, freqAno: 6, anosRetencao: 2
+    },
+    operacional: {
+      localizacao: 'Ponto comercial de 45 m² em rua de comércio local, com cozinha nos fundos e balcão com vitrine refrigerada.',
+      processos: '1. Compra semanal de insumos\n2. Produção diária (6h–11h)\n3. Boleamento e embalagem\n4. Exposição no balcão e separação de encomendas\n5. Expedição de delivery e retiradas\n6. Fechamento de caixa e controle de estoque',
+      custoHoraMO: 18, capacidadeMensal: 9000, encargosPct: 45,
+      equipe: [
+        { cargo: 'Confeiteira', qtd: 2, salario: 2100 },
+        { cargo: 'Atendente', qtd: 2, salario: 1700 }
+      ],
+      custosFixos: [
+        { item: 'Aluguel', valor: 3500 }, { item: 'Energia elétrica', valor: 900 }, { item: 'Água', valor: 250 },
+        { item: 'Internet e telefone', valor: 200 }, { item: 'Contabilidade', valor: 650 }, { item: 'Sistema PDV', valor: 150 },
+        { item: 'Pró-labore', valor: 4000 }, { item: 'Manutenção', valor: 200 }, { item: 'Seguro', valor: 120 }, { item: 'Outros', valor: 300 }
+      ],
+      fornecedores: [
+        { nome: 'Atacadista local', item: 'Leite condensado, manteiga', prazo: '2 dias', condicao: '28 dias boleto' },
+        { nome: 'Distribuidora de chocolate', item: 'Chocolate nobre, granulados', prazo: '5 dias', condicao: 'À vista com 5% desc.' },
+        { nome: 'Gráfica de embalagens', item: 'Caixas e cartões', prazo: '10 dias', condicao: '50% no pedido' }
+      ]
+    },
+    investimento: {
+      fixos: [
+        { item: 'Forno combinado', qtd: 1, valor: 9500, vida: 10 },
+        { item: 'Batedeira planetária', qtd: 2, valor: 2200, vida: 5 },
+        { item: 'Vitrine refrigerada', qtd: 1, valor: 7800, vida: 10 },
+        { item: 'Freezer horizontal', qtd: 1, valor: 3200, vida: 10 },
+        { item: 'Mobiliário e balcão', qtd: 1, valor: 6000, vida: 10 },
+        { item: 'Computador e PDV', qtd: 1, valor: 4200, vida: 5 },
+        { item: 'Utensílios de cozinha', qtd: 1, valor: 3500, vida: 5 }
+      ],
+      preop: [
+        { item: 'Reforma do ponto', valor: 15000 }, { item: 'Legalização e alvarás', valor: 2500 },
+        { item: 'Estoque inicial', valor: 6000 }, { item: 'Campanha de lançamento', valor: 4000 }
+      ],
+      mesesGiro: 3, incluirMvp: true,
+      fin: { valor: 30000, taxa: 1.6, prazo: 36, carencia: 3 }
+    },
+    mvp: {
+      hipotese: 'Clientes do bairro pagam R$ 65 por uma caixa presente de 12 brigadeiros e voltam a comprar em até 60 dias.',
+      problema: 'Falta de opção de doce premium para presente com entrega pontual na região.',
+      metrica: 'Pelo menos 50 pedidos e 25% de recompra em 6 semanas de teste.',
+      custoHora: 40, horasSemana: 20,
+      features: [
+        { nome: 'Cardápio digital com pedido via WhatsApp', prio: 'Must', horas: 12, custo: 0, incluir: true },
+        { nome: 'Perfil no Instagram com 30 publicações', prio: 'Must', horas: 20, custo: 150, incluir: true },
+        { nome: 'Lote piloto: 300 brigadeiros + 30 caixas', prio: 'Must', horas: 16, custo: 650, incluir: true },
+        { nome: 'Página de encomendas com Pix', prio: 'Should', horas: 16, custo: 120, incluir: true },
+        { nome: 'Programa de fidelidade', prio: 'Could', horas: 24, custo: 200, incluir: false },
+        { nome: 'Aplicativo próprio de pedidos', prio: "Won't", horas: 300, custo: 2000, incluir: false }
+      ],
+      alcance: 2500, conversaoPct: 3, ticketTeste: 55, metaPedidos: 50, marketingTeste: 600
+    }
+  };
+}
+
+let S = load() || exemplo();
+let C = null;
+let tab = 'painel';
+try { tab = localStorage.getItem(STORE_KEY + ':tab') || 'painel'; } catch (e) {}
+
+function load() { try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+let saveT;
+function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }, 250); }
+
+/* ---------- formatação ---------- */
+const fBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const fBRL0 = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const fN = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const fN1 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
+const brl = v => Number.isFinite(v) ? fBRL.format(v) : '—';
+const brl0 = v => Number.isFinite(v) ? fBRL0.format(v) : '—';
+const kbrl = v => !Number.isFinite(v) ? '—' : Math.abs(v) >= 1e6 ? 'R$ ' + fN1.format(v / 1e6) + ' mi' : Math.abs(v) >= 1e4 ? 'R$ ' + fN1.format(v / 1e3) + ' mil' : brl0(v);
+const pct = (v, d = 1) => Number.isFinite(v) ? (v * 100).toLocaleString('pt-BR', { maximumFractionDigits: d, minimumFractionDigits: d }) + '%' : '—';
+const num = v => Number.isFinite(v) ? fN.format(v) : '—';
+const meses = v => !Number.isFinite(v) ? 'não retorna' : v < 12 ? fN1.format(v) + ' meses' : `${fN1.format(v)} meses (${fN1.format(v / 12)} anos)`;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sum = (a, f) => (a || []).reduce((t, x) => t + (Number(f(x)) || 0), 0);
+const n = v => Number(v) || 0;
+const sg = v => v < 0 ? 'neg' : '';
+
+/* ---------- cálculos ---------- */
+function npv(rate, flows) { return flows.reduce((t, f, i) => t + f / Math.pow(1 + rate, i), 0); }
+function irr(flows) {
+  let lo = -0.99, hi = 1;
+  let flo = npv(lo, flows), fhi = npv(hi, flows);
+  if (!(flo * fhi < 0)) return NaN;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2, fm = npv(mid, flows);
+    if (Math.abs(fm) < 1e-7) return mid;
+    if (flo * fm < 0) { hi = mid; fhi = fm; } else { lo = mid; flo = fm; }
+  }
+  return (lo + hi) / 2;
+}
+function payback(flows) {
+  let acc = flows[0];
+  if (acc >= 0) return 0;
+  for (let m = 1; m < flows.length; m++) {
+    const prev = acc; acc += flows[m];
+    if (acc >= 0) return m - 1 + (-prev) / flows[m];
+  }
+  return NaN;
+}
+
+function compute(s) {
+  const P = s.premissas, O = s.operacional, I = s.investimento, M = s.mvp;
+  const H = Math.max(12, Math.min(120, Math.round(n(P.horizonte)) || 60));
+  // canais e custos variáveis sobre a venda
+  const partTot = sum(s.comercial.canais, c => c.part);
+  const taxaCanais = partTot > 0 ? sum(s.comercial.canais, c => n(c.part) * n(c.taxa)) / partTot / 100 : 0;
+  const varPct = n(P.impostosPct) / 100 + n(P.comissaoPct) / 100 + taxaCanais;
+  // custos fixos
+  const folha = sum(O.equipe, e => n(e.qtd) * n(e.salario)) * (1 + n(O.encargosPct) / 100);
+  const fixosItens = sum(O.custosFixos, c => c.valor);
+  const mkt = sum(s.marketing.orcamento, o => o.valor);
+  const deprec = sum(I.fixos, f => n(f.vida) > 0 ? n(f.qtd) * n(f.valor) / (n(f.vida) * 12) : 0);
+  const fixoCaixa = folha + fixosItens + mkt;
+  const fixoTotal = fixoCaixa + deprec;
+  // MVP
+  const mvpFeat = (M.features || []).map(f => ({ ...f, total: n(f.horas) * n(M.custoHora) + n(f.custo) }));
+  const mvpSel = mvpFeat.filter(f => f.incluir);
+  const mvpCusto = sum(mvpSel, f => f.total) + n(M.marketingTeste);
+  const mvpHoras = sum(mvpSel, f => f.horas);
+  const mvpSemanas = n(M.horasSemana) > 0 ? mvpHoras / n(M.horasSemana) : NaN;
+  const mvpPedidos = n(M.alcance) * n(M.conversaoPct) / 100;
+  const mvpReceita = mvpPedidos * n(M.ticketTeste);
+  const mvpCac = mvpPedidos > 0 ? n(M.marketingTeste) / mvpPedidos : NaN;
+  // produtos — custo direto
+  const custoMin = n(O.custoHoraMO) / 60;
+  const prods = s.produtos.map(p => {
+    const insumos = sum(p.insumos, i => n(i.qtd) * n(i.custo));
+    const mo = n(p.minutosMO) * custoMin;
+    const cd = insumos + mo + n(p.embalagem) + n(p.outros);
+    return { p, insumos, mo, cd };
+  });
+  // sazonalidade e volume
+  const saz = (s.comercial.sazonalidade || []).map(v => n(v) / 100);
+  const mesIni = (() => { const m = /^(\d{4})-(\d{2})/.exec(s.empresa.inicio || ''); return m ? +m[2] - 1 : 0; })();
+  const anoIni = (() => { const m = /^(\d{4})/.exec(s.empresa.inicio || ''); return m ? +m[1] : new Date().getFullYear(); })();
+  const qty = (p, m) => n(p.vendasMes1) * Math.pow(1 + n(p.crescimentoPct) / 100, Math.min(m, Math.max(1, n(P.mesesCrescimento))) - 1) * (saz.length === 12 ? (saz[(mesIni + m - 1) % 12] || 0) : 1);
+  // rateio de custo fixo no preço (ponto fixo)
+  const precoCom = (x, f) => {
+    if (n(x.p.precoManual) > 0) return n(x.p.precoManual);
+    const den = 1 - varPct - f - n(x.p.margemPct) / 100;
+    return den > 0.05 ? x.cd / den : NaN;
+  };
+  const maxF = Math.max(0, 0.95 - varPct - Math.max(0, ...prods.map(x => n(x.p.margemPct) / 100)));
+  let f = Math.min(0.15, maxF), rateioOk = true;
+  for (let it = 0; it < 200; it++) {
+    let R = 0;
+    for (const x of prods) { const pr = precoCom(x, f); for (let m = 1; m <= 12; m++) R += (pr || 0) * qty(x.p, m); }
+    R /= 12;
+    const fNew = R > 0 ? fixoTotal / R : maxF;
+    const next = Math.min(maxF, (f + fNew) / 2);
+    if (Math.abs(next - f) < 1e-7) { f = next; break; }
+    f = next;
+  }
+  {
+    let R = 0;
+    for (const x of prods) { const pr = precoCom(x, f); for (let m = 1; m <= 12; m++) R += (pr || 0) * qty(x.p, m); }
+    if (R <= 0 || fixoTotal / (R / 12) > f + 0.002) rateioOk = false;
+  }
+  const rateioPct = f;
+  prods.forEach(x => {
+    const den = 1 - varPct - rateioPct - n(x.p.margemPct) / 100;
+    x.markup = den > 0.05 ? 1 / den : NaN;
+    x.sugerido = den > 0.05 ? x.cd / den : NaN;
+    x.preco = n(x.p.precoManual) > 0 ? n(x.p.precoManual) : x.sugerido;
+    x.mcUnit = x.preco * (1 - varPct) - x.cd;
+    x.mcPct = x.preco > 0 ? x.mcUnit / x.preco : NaN;
+    x.margemReal = x.preco > 0 ? (x.preco * (1 - varPct - rateioPct) - x.cd) / x.preco : NaN;
+  });
+  // investimento
+  const invFixos = sum(I.fixos, x => n(x.qtd) * n(x.valor));
+  const invPreop = sum(I.preop, x => x.valor);
+  const invGiro = n(I.mesesGiro) * fixoCaixa;
+  const invMvp = I.incluirMvp ? mvpCusto : 0;
+  const invTotal = invFixos + invPreop + invGiro + invMvp;
+  const finV = Math.min(n(I.fin.valor), invTotal);
+  const proprio = invTotal - finV;
+  // financiamento (Price com carência de juros)
+  const fi = n(I.fin.taxa) / 100, fPrazo = Math.max(0, Math.round(n(I.fin.prazo))), fCar = Math.min(Math.max(0, Math.round(n(I.fin.carencia))), fPrazo);
+  const nAm = fPrazo - fCar;
+  const pmt = finV > 0 && nAm > 0 ? (fi > 0 ? finV * fi / (1 - Math.pow(1 + fi, -nAm)) : finV / nAm) : 0;
+  let saldo = finV;
+  // TMA
+  const tmaM = Math.pow(1 + n(P.tmaAnual) / 100, 1 / 12) - 1;
+  const irP = n(P.irPct) / 100;
+  // projeção mensal
+  const rows = [];
+  let caixa = invGiro, acc = -invTotal, accD = -invTotal;
+  const fluxos = [-invTotal];
+  for (let m = 1; m <= H; m++) {
+    const y = Math.floor((m - 1) / 12);
+    const inf = Math.pow(1 + n(P.inflacaoAnual) / 100, y);
+    let receita = 0, cpv = 0, unid = 0;
+    const porProd = prods.map(x => {
+      const q = qty(x.p, m), r = (x.preco || 0) * inf * q, c = x.cd * inf * q;
+      receita += r; cpv += c; unid += q;
+      return { q, r };
+    });
+    const ded = receita * varPct;
+    const mc = receita - ded - cpv;
+    const fixos = fixoCaixa * inf;
+    const ebitda = mc - fixos;
+    const ebit = ebitda - deprec;
+    let juros = 0, amort = 0;
+    if (saldo > 0.005 && m <= fPrazo) {
+      juros = saldo * fi;
+      if (m > fCar) { amort = Math.min(saldo, pmt - juros); }
+      saldo -= amort;
+    }
+    const lair = ebit - juros;
+    const ir = Math.max(0, lair) * irP;
+    const ll = lair - ir;
+    const fc = ebit - Math.max(0, ebit) * irP + deprec;
+    acc += fc;
+    const fcD = fc / Math.pow(1 + tmaM, m);
+    accD += fcD;
+    caixa += ll + deprec - amort;
+    fluxos.push(fc);
+    rows.push({ m, ano: y + 1, label: rotuloMes(anoIni, mesIni, m), receita, ded, cpv, mc, fixos, ebitda, deprec, ebit, juros, amort, lair, ir, ll, fc, acc, fcD, accD, caixa, unid, porProd, custosTot: ded + cpv + fixos + deprec + juros });
+  }
+  // anual
+  const anos = [];
+  for (let y = 1; y <= Math.ceil(H / 12); y++) {
+    const rs = rows.filter(r => r.ano === y);
+    const a = { ano: y, meses: rs.length };
+    ['receita', 'ded', 'cpv', 'mc', 'fixos', 'ebitda', 'deprec', 'ebit', 'juros', 'amort', 'lair', 'ir', 'll', 'fc', 'unid'].forEach(k => a[k] = sum(rs, r => r[k]));
+    a.caixaFim = rs.length ? rs[rs.length - 1].caixa : 0;
+    a.accFim = rs.length ? rs[rs.length - 1].acc : 0;
+    anos.push(a);
+  }
+  // indicadores
+  const vpl = npv(tmaM, fluxos);
+  const tirM = irr(fluxos);
+  const tirA = Number.isFinite(tirM) && tirM > -0.95 ? Math.pow(1 + tirM, 12) - 1 : NaN;
+  const pb = payback(fluxos);
+  const fluxD = fluxos.map((v, i) => v / Math.pow(1 + tmaM, i));
+  const pbD = payback(fluxD);
+  const a1 = anos[0] || {};
+  const mcPct1 = a1.receita > 0 ? a1.mc / a1.receita : NaN;
+  const fixoMes1 = ((a1.fixos || 0) + (a1.deprec || 0)) / 12;
+  const peR = mcPct1 > 0 ? fixoMes1 / mcPct1 : NaN;
+  const peEcon = mcPct1 > 0 ? (fixoMes1 + invTotal * tmaM) / mcPct1 : NaN;
+  const receitaMes1 = (a1.receita || 0) / 12;
+  const margemSeg = receitaMes1 > 0 ? (receitaMes1 - peR) / receitaMes1 : NaN;
+  const peUnid = prods.map((x, i) => {
+    const share = a1.receita > 0 ? sum(rows.filter(r => r.ano === 1), r => r.porProd[i].r) / a1.receita : 0;
+    return x.preco > 0 ? peR * share / x.preco : NaN;
+  });
+  const mesEquilibrio = (rows.find(r => r.ebit >= 0) || {}).m;
+  const caixaMin = Math.min(invGiro, ...rows.map(r => r.caixa));
+  const mesCaixaMin = rows.reduce((b, r) => r.caixa < b.caixa ? r : b, rows[0] || { m: 0, caixa: 0 }).m;
+  const llMedioAno = sum(anos.filter(a => a.meses === 12), a => a.ll) / Math.max(1, anos.filter(a => a.meses === 12).length);
+  const rentab = invTotal > 0 ? llMedioAno / invTotal : NaN;
+  const roi = invTotal > 0 ? (sum(fluxos.slice(1), v => v) - invTotal) / invTotal : NaN;
+  const lucrat1 = a1.receita > 0 ? a1.ll / a1.receita : NaN;
+  const a2 = anos[1];
+  const lucrat2 = a2 && a2.receita > 0 ? a2.ll / a2.receita : NaN;
+  const maxUnid = Math.max(0, ...rows.map(r => r.unid));
+  const capOk = !(n(O.capacidadeMensal) > 0) || maxUnid <= n(O.capacidadeMensal);
+  const mesCapEstouro = n(O.capacidadeMensal) > 0 ? (rows.find(r => r.unid > n(O.capacidadeMensal)) || {}).m : undefined;
+  // marketing
+  const Mk = s.marketing;
+  const cac = n(Mk.novosClientes) > 0 ? mkt / n(Mk.novosClientes) : NaN;
+  const ltv = n(Mk.ticket) * n(Mk.freqAno) * n(Mk.anosRetencao) * (Number.isFinite(mcPct1) ? mcPct1 : 0);
+  const ltvCac = cac > 0 ? ltv / cac : NaN;
+
+  const checks = [
+    { nome: 'Valor presente líquido (VPL) positivo', ok: vpl > 0 ? 'good' : 'bad', val: brl0(vpl), info: `Descontado à TMA de ${pct(n(P.tmaAnual) / 100)} a.a. em ${H} meses.` },
+    { nome: 'TIR acima da TMA', ok: Number.isFinite(tirA) && tirA > n(P.tmaAnual) / 100 ? 'good' : 'bad', val: Number.isFinite(tirA) ? pct(tirA) + ' a.a.' : 'sem TIR', info: 'Taxa que zera o VPL do fluxo do projeto.' },
+    { nome: 'Payback dentro do horizonte', ok: !Number.isFinite(pb) ? 'bad' : pb <= 36 ? 'good' : 'warn', val: meses(pb), info: 'Até 36 meses é considerado saudável para pequeno varejo.' },
+    { nome: 'Caixa nunca fica negativo', ok: caixaMin >= 0 ? 'good' : 'bad', val: brl0(caixaMin), info: caixaMin >= 0 ? `Menor saldo no mês ${mesCaixaMin}.` : `Faltam ${brl0(-caixaMin)} de capital de giro (mês ${mesCaixaMin}).` },
+    { nome: 'Margem de segurança no ano 1', ok: !Number.isFinite(margemSeg) ? 'bad' : margemSeg >= 0.2 ? 'good' : margemSeg >= 0 ? 'warn' : 'bad', val: pct(margemSeg), info: 'Quanto a receita média supera o ponto de equilíbrio. Acima de 20% é confortável.' },
+    { nome: 'Capacidade produtiva atende a demanda', ok: capOk ? 'good' : 'warn', val: capOk ? 'Atende' : `Estoura no mês ${mesCapEstouro}`, info: `Pico de ${num(maxUnid)} unidades/mês contra capacidade de ${num(n(O.capacidadeMensal))}.` },
+    { nome: 'LTV / CAC', ok: !Number.isFinite(ltvCac) ? 'warn' : ltvCac >= 3 ? 'good' : ltvCac >= 1 ? 'warn' : 'bad', val: Number.isFinite(ltvCac) ? fN1.format(ltvCac) + '×' : '—', info: 'Valor de um cliente dividido pelo custo para conquistá-lo. Meta: 3× ou mais.' },
+    { nome: 'Preços cobrem custos e margem desejada', ok: rateioOk && prods.every(x => Number.isFinite(x.preco) && x.mcUnit > 0) ? 'good' : 'bad', val: rateioOk ? 'Sim' : 'Volume insuficiente', info: 'Markup consegue absorver custos variáveis, rateio dos fixos e margem.' }
+  ];
+  const bad = checks.filter(c => c.ok === 'bad').length, warn = checks.filter(c => c.ok === 'warn').length;
+  const core = vpl > 0 && Number.isFinite(pb);
+  const verdict = !core ? 'bad' : bad > 0 || warn > 1 ? 'warn' : 'good';
+
+  return { H, taxaCanais, varPct, folha, fixosItens, mkt, deprec, fixoCaixa, fixoTotal, rateioPct, rateioOk, prods,
+    mvp: { feats: mvpFeat, custo: mvpCusto, horas: mvpHoras, semanas: mvpSemanas, pedidos: mvpPedidos, receita: mvpReceita, cac: mvpCac },
+    inv: { fixos: invFixos, preop: invPreop, giro: invGiro, mvp: invMvp, total: invTotal, fin: finV, proprio, pmt, nAm, fCar },
+    rows, anos, fluxos, tmaM, vpl, tirM, tirA, pb, pbD, mcPct1, peR, peEcon, peUnid, margemSeg, receitaMes1, mesEquilibrio, caixaMin, mesCaixaMin,
+    rentab, roi, lucrat1, lucrat2, maxUnid, capOk, cac, ltv, ltvCac, checks, verdict };
+}
+function rotuloMes(ano, mes0, m) {
+  const d = mes0 + m - 1;
+  const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return nomes[d % 12] + '/' + String(ano + Math.floor(d / 12)).slice(2);
+}
+
+/* ---------- estado: caminhos ---------- */
+function getPath(path) { return path.split('.').reduce((o, k) => o == null ? o : o[k], S); }
+function setPath(path, val) {
+  const ks = path.split('.'); let o = S;
+  for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]];
+  o[ks[ks.length - 1]] = val;
+}
+const TPL = {
+  produtos: () => ({ id: uid(), nome: 'Novo produto', unidade: 'un', margemPct: 15, vendasMes1: 100, crescimentoPct: 2, precoManual: 0, minutosMO: 0, embalagem: 0, outros: 0, insumos: [{ nome: 'Insumo', qtd: 1, unid: 'un', custo: 0 }] }),
+  insumos: () => ({ nome: '', qtd: 1, unid: 'un', custo: 0 }),
+  custosFixos: () => ({ item: '', valor: 0 }),
+  equipe: () => ({ cargo: '', qtd: 1, salario: 0 }),
+  fornecedores: () => ({ nome: '', item: '', prazo: '', condicao: '' }),
+  concorrentes: () => ({ nome: '', preco: '', fortes: '', fracos: '' }),
+  orcamento: () => ({ acao: '', canal: '', valor: 0 }),
+  canais: () => ({ canal: '', part: 0, taxa: 0 }),
+  fixos: () => ({ item: '', qtd: 1, valor: 0, vida: 5 }),
+  preop: () => ({ item: '', valor: 0 }),
+  features: () => ({ nome: '', prio: 'Must', horas: 0, custo: 0, incluir: true })
+};
+
+/* ---------- componentes de formulário ---------- */
+function field(path, label, o = {}) {
+  const v = getPath(path);
+  const id = 'f-' + path.replace(/\./g, '-');
+  let ctrl;
+  if (o.type === 'textarea') ctrl = `<textarea id="${id}" data-path="${path}" rows="${o.rows || 3}">${esc(v)}</textarea>`;
+  else if (o.type === 'number') ctrl = `<div class="in">${o.pre ? `<em class="pre">${o.pre}</em>` : ''}<input id="${id}" type="number" step="any" data-path="${path}" data-num value="${esc(v)}">${o.suf ? `<em>${o.suf}</em>` : ''}</div>`;
+  else if (o.type === 'check') return `<label class="row" for="${id}"><input id="${id}" type="checkbox" data-path="${path}" ${v ? 'checked' : ''}><span>${label}</span></label>`;
+  else ctrl = `<input id="${id}" type="${o.type || 'text'}" data-path="${path}" value="${esc(v)}">`;
+  return `<label class="f" for="${id}"><span>${label}</span>${ctrl}${o.hint ? `<small>${o.hint}</small>` : ''}</label>`;
+}
+/* cols: {k, l, t:'text'|'num'|'sel'|'check', opts, w, calc:(row,i)=>html} */
+function table(path, cols, o = {}) {
+  const rows = getPath(path) || [];
+  const key = path.split('.').pop();
+  const head = cols.map(c => `<th class="${c.t === 'num' || c.calc ? 'n' : ''}" ${c.w ? `style="width:${c.w}"` : ''}>${c.l}</th>`).join('') + '<th style="width:36px"></th>';
+  const body = rows.map((r, i) => '<tr>' + cols.map(c => {
+    const p = `${path}.${i}.${c.k}`, id = 'f-' + p.replace(/\./g, '-');
+    if (c.calc) return `<td class="n out" data-calc="${path}:${i}:${c.k}">${c.calc(r, i)}</td>`;
+    if (c.t === 'num') return `<td><input id="${id}" aria-label="${c.l}" type="number" step="any" data-path="${p}" data-num value="${esc(r[c.k])}"></td>`;
+    if (c.t === 'check') return `<td style="text-align:center"><input id="${id}" aria-label="${c.l}" type="checkbox" data-path="${p}" ${r[c.k] ? 'checked' : ''}></td>`;
+    if (c.t === 'sel') return `<td><select id="${id}" aria-label="${c.l}" data-path="${p}">${c.opts.map(x => `<option ${x === r[c.k] ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></td>`;
+    return `<td><input id="${id}" aria-label="${c.l}" data-path="${p}" value="${esc(r[c.k])}"></td>`;
+  }).join('') + `<td><button class="btn ghost" data-del="${path}" data-i="${i}" aria-label="Remover linha" title="Remover">✕</button></td></tr>`).join('');
+  const foot = o.total ? `<tr class="total"><td colspan="${o.totalSpan || 1}">Total</td><td class="n" data-calc="${path}:total" colspan="${cols.length - (o.totalSpan || 1)}">${o.total()}</td><td></td></tr>` : '';
+  return `<div class="tw"><table><thead><tr>${head}</tr></thead><tbody>${body}${foot}</tbody></table></div>
+    <div><button class="btn sm" data-add="${path}" data-tpl="${key}">+ Adicionar</button></div>`;
+}
+function panel(title, desc, inner, extra = '') { return `<section class="panel" ${extra}><header><h3>${title}</h3>${desc ? `<p>${desc}</p>` : ''}</header>${inner}</section>`; }
+function kpi(l, v, d = '', cls = '') { return `<div class="kpi"><span class="l">${l}</span><span class="v ${cls}">${v}</span>${d ? `<span class="d">${d}</span>` : ''}</div>`; }
+function pill(state, text) { return `<span class="pill ${state}">${text}</span>`; }
+const VERD = { good: 'Viável', warn: 'Viável com atenção', bad: 'Inviável' };
+
+/* ---------- abas ---------- */
+const TABS = [
+  { id: 'painel', t: 'Painel', k: '00' },
+  { id: 'empresa', t: 'Empresa', k: '01' },
+  { id: 'mvp', t: 'MVP', k: '02' },
+  { id: 'produtos', t: 'Produtos e custos', k: '03' },
+  { id: 'comercial', t: 'Comercial', k: '04' },
+  { id: 'marketing', t: 'Marketing', k: '05' },
+  { id: 'operacional', t: 'Operacional', k: '06' },
+  { id: 'investimento', t: 'Investimento', k: '07' },
+  { id: 'financeiro', t: 'Financeiro', k: '08' },
+  { id: 'viabilidade', t: 'Viabilidade', k: '09' }
+];
+
+const V = {};
+
+V.painel = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">Visão geral</div><h2>Painel do negócio</h2>
+      <p class="lead">Resumo dos números do plano. Tudo é recalculado quando você altera qualquer aba.</p></div></div>
+    <div class="stack">
+      <div data-region="verdict"></div>
+      <div class="kpis" data-region="kpis"></div>
+      <div class="grid g2">
+        ${panel('Receita × custos totais', 'Por mês, ao longo do horizonte', '<div class="legend"><span><i style="background:var(--s1)"></i>Receita bruta</span><span><i style="background:var(--s2)"></i>Custos totais</span></div><div class="chart"><canvas id="chRec" aria-label="Receita e custos por mês" role="img"></canvas></div>')}
+        ${panel('Fluxo de caixa acumulado', 'Fluxo do projeto; cruza o zero no payback', '<div class="chart"><canvas id="chAcc" aria-label="Fluxo de caixa acumulado" role="img"></canvas></div>')}
+        ${panel('Resultado por ano', 'Receita bruta e lucro líquido', '<div class="legend"><span><i style="background:var(--s1)"></i>Receita bruta</span><span><i style="background:var(--s3)"></i>Lucro líquido</span></div><div class="chart"><canvas id="chAno" aria-label="Receita e lucro por ano" role="img"></canvas></div>')}
+        ${panel('Para onde vai o dinheiro', 'Composição dos custos no mês 12', '<div class="chart"><canvas id="chComp" aria-label="Composição de custos" role="img"></canvas></div>')}
+      </div>
+    </div>`,
+  regions: {
+    verdict: () => verdictBlock(),
+    kpis: () => [
+      kpi('Investimento total', kbrl(C.inv.total), `${brl0(C.inv.proprio)} próprio · ${brl0(C.inv.fin)} financiado`),
+      kpi('Receita no ano 1', kbrl(C.anos[0]?.receita), `Média de ${brl0(C.receitaMes1)}/mês`),
+      kpi('Lucro líquido ano 1', kbrl(C.anos[0]?.ll), `Lucratividade ${pct(C.lucrat1)}`, sg(C.anos[0]?.ll)),
+      kpi('VPL', kbrl(C.vpl), `TMA ${pct(n(S.premissas.tmaAnual) / 100)} a.a.`, sg(C.vpl)),
+      kpi('TIR', Number.isFinite(C.tirA) ? pct(C.tirA) : '—', 'ao ano'),
+      kpi('Payback', Number.isFinite(C.pb) ? fN1.format(C.pb) + ' m' : 'não retorna', `Descontado: ${Number.isFinite(C.pbD) ? fN1.format(C.pbD) + ' meses' : 'não retorna'}`),
+      kpi('Ponto de equilíbrio', kbrl(C.peR), `por mês · margem de segurança ${pct(C.margemSeg)}`),
+      kpi('Custo do MVP', kbrl(C.mvp.custo), Number.isFinite(C.mvp.semanas) ? `${fN1.format(C.mvp.semanas)} semanas de execução` : '')
+    ].join('')
+  },
+  after: () => drawDashboard()
+};
+
+function verdictBlock() {
+  const v = C.verdict;
+  const resumo = v === 'good' ? `O negócio retorna o investimento em ${meses(C.pb)} e rende ${pct(C.tirA)} ao ano, acima da TMA.`
+    : v === 'warn' ? `O projeto tem VPL positivo, mas ${C.checks.filter(c => c.ok !== 'good').map(c => c.nome.toLowerCase()).join('; ')} precisam de atenção.`
+    : `Com as premissas atuais o investimento não se paga no horizonte de ${C.H} meses. Revise preços, volume ou custos fixos.`;
+  return `<div class="verdict"><div class="badge ${v}">${VERD[v]}</div><div><strong>${esc(S.empresa.nome || 'Seu negócio')}</strong><p class="hint" style="font-size:13.5px;color:var(--ink-2)">${resumo}</p></div></div>`;
+}
+
+V.empresa = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">01 · Sumário executivo</div><h2>Empresa</h2>
+      <p class="lead">Quem é o negócio, o que vende e por que existe uma oportunidade.</p></div></div>
+    <div class="stack">
+      ${panel('Identificação', '', `<div class="grid g3">
+        ${field('empresa.nome', 'Nome do negócio')}${field('empresa.segmento', 'Segmento')}${field('empresa.cidade', 'Cidade')}
+        ${field('empresa.responsavel', 'Responsável')}${field('empresa.formaJuridica', 'Forma jurídica / regime')}${field('empresa.inicio', 'Início das operações', { type: 'month', hint: 'Define o calendário da projeção e a sazonalidade.' })}
+      </div>${field('empresa.descricao', 'Descrição do negócio', { type: 'textarea' })}${field('empresa.oportunidade', 'Oportunidade de mercado', { type: 'textarea' })}`)}
+      ${panel('Identidade', '', `<div class="grid g3">${field('empresa.missao', 'Missão', { type: 'textarea' })}${field('empresa.visao', 'Visão', { type: 'textarea' })}${field('empresa.valores', 'Valores', { type: 'textarea' })}</div>`)}
+      ${panel('Análise SWOT', 'Fatores internos (forças e fraquezas) e externos (oportunidades e ameaças)', `<div class="grid g2">
+        ${field('empresa.forcas', 'Forças', { type: 'textarea', rows: 4 })}${field('empresa.fraquezas', 'Fraquezas', { type: 'textarea', rows: 4 })}
+        ${field('empresa.oportunidades', 'Oportunidades', { type: 'textarea', rows: 4 })}${field('empresa.ameacas', 'Ameaças', { type: 'textarea', rows: 4 })}</div>`)}
+    </div>`
+};
+
+V.mvp = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">02 · Produto mínimo viável</div><h2>MVP</h2>
+      <p class="lead">O menor teste que comprova que clientes compram. Marque o que entra no MVP; o custo pode ser somado ao investimento inicial.</p></div></div>
+    <div class="stack">
+      <div class="kpis" data-region="mvpk"></div>
+      ${panel('Hipótese a validar', '', `${field('mvp.hipotese', 'Hipótese principal', { type: 'textarea', rows: 2 })}<div class="grid g2">${field('mvp.problema', 'Problema do cliente', { type: 'textarea', rows: 2 })}${field('mvp.metrica', 'Critério de sucesso', { type: 'textarea', rows: 2 })}</div>`)}
+      ${panel('Escopo do MVP', 'Priorização MoSCoW: Must (obrigatório), Should (importante), Could (desejável), Won\'t (fora agora)', `
+        <div class="grid g4">${field('mvp.custoHora', 'Custo da hora de trabalho', { type: 'number', pre: 'R$' })}${field('mvp.horasSemana', 'Horas disponíveis por semana', { type: 'number', suf: 'h' })}</div>
+        ${table('mvp.features', [
+          { k: 'incluir', l: 'No MVP', t: 'check', w: '64px' },
+          { k: 'nome', l: 'Item / funcionalidade' },
+          { k: 'prio', l: 'Prioridade', t: 'sel', opts: ['Must', 'Should', 'Could', "Won't"], w: '110px' },
+          { k: 'horas', l: 'Horas', t: 'num', w: '90px' },
+          { k: 'custo', l: 'Custo direto R$', t: 'num', w: '130px' },
+          { k: '_t', l: 'Total', calc: (r, i) => brl(C.mvp.feats[i]?.total) }
+        ])}`)}
+      ${panel('Teste de mercado', 'Estimativa do resultado da validação', `
+        <div class="grid g4">${field('mvp.alcance', 'Pessoas alcançadas', { type: 'number' })}${field('mvp.conversaoPct', 'Conversão esperada', { type: 'number', suf: '%' })}
+        ${field('mvp.ticketTeste', 'Ticket médio no teste', { type: 'number', pre: 'R$' })}${field('mvp.metaPedidos', 'Meta de pedidos', { type: 'number' })}
+        ${field('mvp.marketingTeste', 'Verba de divulgação do teste', { type: 'number', pre: 'R$' })}</div>
+        <div data-region="mvpr"></div>`)}
+    </div>`,
+  regions: {
+    mvpk: () => [
+      kpi('Custo total do MVP', brl0(C.mvp.custo), 'itens marcados + divulgação'),
+      kpi('Esforço', fN.format(C.mvp.horas) + ' h', Number.isFinite(C.mvp.semanas) ? `≈ ${fN1.format(C.mvp.semanas)} semanas` : ''),
+      kpi('Pedidos esperados', num(C.mvp.pedidos), `meta: ${num(n(S.mvp.metaPedidos))}`),
+      kpi('CAC no teste', brl(C.mvp.cac), 'verba ÷ pedidos')
+    ].join(''),
+    mvpr: () => {
+      const ok = C.mvp.pedidos >= n(S.mvp.metaPedidos);
+      const res = C.mvp.receita - C.mvp.custo;
+      return `<div class="breakdown">
+        <div><span>Receita do teste</span><b>${brl0(C.mvp.receita)}</b></div>
+        <div><span>Resultado do teste</span><b class="${sg(res)}">${brl0(res)}</b></div>
+        <div><span>Recuperação do MVP</span><b>${pct(C.mvp.custo > 0 ? C.mvp.receita / C.mvp.custo : NaN, 0)}</b></div>
+        <div class="hl"><span>Meta de validação</span><b>${pill(ok ? 'good' : 'warn', ok ? 'Atingível' : 'Abaixo da meta')}</b></div>
+      </div><p class="hint">O volume mínimo para o negócio se sustentar depois do MVP é o ponto de equilíbrio: ${C.prods.map((x, i) => `${num(C.peUnid[i])} ${esc(x.p.unidade)} de ${esc(x.p.nome)}`).join(', ')} por mês.</p>
+      ${field('investimento.incluirMvp', 'Somar o custo do MVP ao investimento inicial', { type: 'check' })}`;
+    }
+  }
+};
+
+V.produtos = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">03 · Formação de preço</div><h2>Produtos e custos</h2>
+      <p class="lead">Custo direto unitário (insumos, mão de obra, embalagem) e preço de venda por markup: preço = custo ÷ (1 − impostos − taxas − rateio de fixos − margem).</p></div></div>
+    <div class="stack">
+      ${panel('Premissas de preço', 'Valem para todos os produtos', `<div class="grid g4">
+        ${field('premissas.impostosPct', 'Impostos sobre a venda', { type: 'number', suf: '%', hint: 'Ex.: alíquota do Simples Nacional' })}
+        ${field('premissas.comissaoPct', 'Comissão de vendas', { type: 'number', suf: '%' })}
+        ${field('operacional.custoHoraMO', 'Custo da hora de mão de obra direta', { type: 'number', pre: 'R$' })}
+      </div><div data-region="premcalc"></div>`)}
+      <section class="panel"><header><h3>Resumo dos produtos</h3><p>Preço adotado = preço manual, se informado; senão, o sugerido</p></header><div data-region="resumo"></div></section>
+      <div class="stack" id="prodList">${S.produtos.map((p, i) => prodCard(i)).join('')}</div>
+      <div><button class="btn primary" data-add="produtos" data-tpl="produtos">+ Adicionar produto</button></div>
+    </div>`,
+  regions: {
+    premcalc: () => `<div class="breakdown">
+      <div><span>Taxas de canais (média)</span><b>${pct(C.taxaCanais, 2)}</b></div>
+      <div><span>Custos variáveis s/ venda</span><b>${pct(C.varPct, 2)}</b></div>
+      <div><span>Rateio de custos fixos</span><b>${pct(C.rateioPct, 2)}</b></div>
+      <div class="hl"><span>Status do rateio</span><b>${C.rateioOk ? pill('good', 'Coberto') : pill('bad', 'Volume baixo')}</b></div></div>
+      <p class="hint">O rateio divide os custos fixos mensais (${brl0(C.fixoTotal)}) pela receita média do ano 1. Taxas de canais vêm da aba Comercial.</p>`,
+    resumo: () => `<div class="tw"><table class="ro"><thead><tr><th>Produto</th><th class="n">Custo direto</th><th class="n">Markup</th><th class="n">Preço sugerido</th><th class="n">Preço adotado</th><th class="n">Margem contrib.</th><th class="n">MC %</th><th class="n">Lucro %</th></tr></thead><tbody>
+      ${C.prods.map(x => `<tr><td>${esc(x.p.nome)} <span class="hint">/${esc(x.p.unidade)}</span></td><td class="n">${brl(x.cd)}</td><td class="n">${Number.isFinite(x.markup) ? x.markup.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '×' : '—'}</td><td class="n">${brl(x.sugerido)}</td><td class="n"><b>${brl(x.preco)}</b></td><td class="n ${sg(x.mcUnit)}">${brl(x.mcUnit)}</td><td class="n">${pct(x.mcPct)}</td><td class="n ${sg(x.margemReal)}">${pct(x.margemReal)}</td></tr>`).join('')}
+      </tbody></table></div>`,
+  }
+};
+function prodCard(i) {
+  const b = `produtos.${i}`;
+  return `<details class="prod" ${i === 0 ? 'open' : ''}><summary><h3>${esc(S.produtos[i].nome || 'Produto')}</h3><span class="meta" data-region="ps${i}">${prodSummary(i)}</span></summary>
+    <div class="body">
+      <div class="grid g4">
+        ${field(b + '.nome', 'Nome')}${field(b + '.unidade', 'Unidade de venda')}
+        ${field(b + '.margemPct', 'Margem de lucro desejada', { type: 'number', suf: '%' })}
+        ${field(b + '.precoManual', 'Preço manual (opcional)', { type: 'number', pre: 'R$', hint: '0 = usar preço sugerido' })}
+        ${field(b + '.minutosMO', 'Mão de obra direta', { type: 'number', suf: 'min', hint: 'Minutos por unidade' })}
+        ${field(b + '.embalagem', 'Embalagem por unidade', { type: 'number', pre: 'R$' })}
+        ${field(b + '.outros', 'Outros custos variáveis', { type: 'number', pre: 'R$' })}
+      </div>
+      <h3 style="font-size:.95rem">Ficha técnica — insumos por unidade</h3>
+      ${table(b + '.insumos', [
+        { k: 'nome', l: 'Insumo' }, { k: 'qtd', l: 'Qtd. por unidade', t: 'num', w: '130px' }, { k: 'unid', l: 'Unid.', w: '80px' },
+        { k: 'custo', l: 'Custo da unid. R$', t: 'num', w: '140px' }, { k: '_t', l: 'Custo', calc: r => brl(n(r.qtd) * n(r.custo)) }
+      ], { total: () => brl(C.prods[i]?.insumos), totalSpan: 4 })}
+      <div data-region="pc${i}">${C ? prodCalc(i) : ''}</div>
+      <div class="row" style="justify-content:space-between"><span class="hint">Volume e crescimento de vendas ficam na aba Comercial.</span><button class="btn sm" data-del="produtos" data-i="${i}">Remover produto</button></div>
+    </div></details>`;
+}
+function prodSummary(i) {
+  const x = C?.prods[i]; if (!x) return '';
+  return `<span>Custo <b>${brl(x.cd)}</b></span><span>Preço <b>${brl(x.preco)}</b></span><span>MC <b>${pct(x.mcPct)}</b></span>`;
+}
+function prodCalc(i) {
+  const x = C.prods[i]; if (!x) return '';
+  return `<div class="breakdown">
+    <div><span>Insumos</span><b>${brl(x.insumos)}</b></div>
+    <div><span>Mão de obra direta</span><b>${brl(x.mo)}</b></div>
+    <div><span>Embalagem + outros</span><b>${brl(n(x.p.embalagem) + n(x.p.outros))}</b></div>
+    <div class="hl"><span>Custo direto unitário</span><b>${brl(x.cd)}</b></div>
+    <div><span>Markup multiplicador</span><b>${Number.isFinite(x.markup) ? x.markup.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '×' : 'inviável'}</b></div>
+    <div class="hl"><span>Preço sugerido</span><b>${brl(x.sugerido)}</b></div>
+    <div><span>Margem de contribuição</span><b class="${sg(x.mcUnit)}">${brl(x.mcUnit)} · ${pct(x.mcPct)}</b></div>
+    <div><span>Lucro por unidade</span><b class="${sg(x.margemReal)}">${brl(x.preco * x.margemReal)} · ${pct(x.margemReal)}</b></div>
+  </div>`;
+}
+
+V.comercial = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">04 · Plano comercial</div><h2>Comercial</h2>
+      <p class="lead">Canais de venda, volume previsto por produto e sazonalidade. Essa é a base da receita projetada.</p></div></div>
+    <div class="stack">
+      ${panel('Previsão de vendas', 'Volume no 1º mês e crescimento mensal composto', `
+        <div class="grid g4">${field('premissas.mesesCrescimento', 'Crescer até o mês', { type: 'number', hint: 'Depois disso o volume estabiliza' })}</div>
+        ${table('produtos', [
+          { k: 'nome', l: 'Produto' }, { k: 'vendasMes1', l: 'Vendas no mês 1', t: 'num', w: '140px' },
+          { k: 'crescimentoPct', l: 'Crescimento a.m. %', t: 'num', w: '150px' },
+          { k: '_p', l: 'Preço', calc: (r, i) => brl(C.prods[i]?.preco) },
+          { k: '_a', l: 'Unid. ano 1', calc: (r, i) => num(sum(C.rows.filter(x => x.ano === 1), x => x.porProd[i]?.q)) },
+          { k: '_r', l: 'Receita ano 1', calc: (r, i) => brl0(sum(C.rows.filter(x => x.ano === 1), x => x.porProd[i]?.r)) }
+        ])}`)}
+      ${panel('Sazonalidade', '100% = mês normal. Ex.: 145% em dezembro significa 45% acima da média', `<div class="saz">${['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, i) => field('comercial.sazonalidade.' + i, m, { type: 'number', suf: '%' })).join('')}</div>`)}
+      ${panel('Canais de venda', 'Participação de cada canal na receita e taxa cobrada (cartão, aplicativo, marketplace)', `
+        ${table('comercial.canais', [{ k: 'canal', l: 'Canal' }, { k: 'part', l: 'Participação %', t: 'num', w: '140px' }, { k: 'taxa', l: 'Taxa %', t: 'num', w: '110px' }])}
+        <div data-region="canais"></div>`)}
+      ${panel('Metas de vendas por mês (ano 1)', '', `<div data-region="metas"></div>`)}
+      ${panel('Política comercial', '', `<div class="grid g3">${field('comercial.politica', 'Condições, descontos e pedido mínimo', { type: 'textarea', rows: 4 })}${field('comercial.prazoRecebimento', 'Prazos de recebimento', { type: 'textarea', rows: 4 })}${field('comercial.metas', 'Metas qualitativas', { type: 'textarea', rows: 4 })}</div>`)}
+    </div>`,
+  regions: {
+    canais: () => {
+      const t = sum(S.comercial.canais, c => c.part);
+      return `<p class="hint">Soma das participações: <b class="${Math.abs(t - 100) > 0.01 ? 'neg' : ''}">${fN1.format(t)}%</b>${Math.abs(t - 100) > 0.01 ? ' (ajuste para 100%)' : ''} · Taxa média ponderada: <b>${pct(C.taxaCanais, 2)}</b></p>`;
+    },
+    metas: () => {
+      const rs = C.rows.slice(0, 12);
+      return `<div class="tw"><table class="ro"><thead><tr><th>Produto</th>${rs.map(r => `<th class="n">${r.label}</th>`).join('')}</tr></thead><tbody>
+        ${C.prods.map((x, i) => `<tr><td>${esc(x.p.nome)}</td>${rs.map(r => `<td class="n">${num(r.porProd[i].q)}</td>`).join('')}</tr>`).join('')}
+        <tr class="total"><td>Receita</td>${rs.map(r => `<td class="n">${kbrl(r.receita)}</td>`).join('')}</tr></tbody></table></div>`;
+    }
+  }
+};
+
+V.marketing = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">05 · Plano de marketing</div><h2>Marketing</h2>
+      <p class="lead">Público, posicionamento, os 4 Ps, concorrência e quanto custa conquistar um cliente.</p></div></div>
+    <div class="stack">
+      <div class="kpis" data-region="mk"></div>
+      ${panel('Público e posicionamento', '', `<div class="grid g3">${field('marketing.publico', 'Público-alvo', { type: 'textarea', rows: 4 })}${field('marketing.persona', 'Persona', { type: 'textarea', rows: 4 })}${field('marketing.posicionamento', 'Posicionamento', { type: 'textarea', rows: 4 })}</div>`)}
+      ${panel('Composto de marketing (4 Ps)', '', `<div class="grid g2">${field('marketing.produto', 'Produto', { type: 'textarea' })}${field('marketing.preco', 'Preço', { type: 'textarea' })}${field('marketing.praca', 'Praça (distribuição)', { type: 'textarea' })}${field('marketing.promocao', 'Promoção (comunicação)', { type: 'textarea' })}</div>`)}
+      ${panel('Concorrentes', '', table('marketing.concorrentes', [{ k: 'nome', l: 'Concorrente' }, { k: 'preco', l: 'Preço praticado', w: '150px' }, { k: 'fortes', l: 'Pontos fortes' }, { k: 'fracos', l: 'Pontos fracos' }]))}
+      ${panel('Orçamento mensal de marketing', 'Entra nos custos fixos do plano financeiro', table('marketing.orcamento', [{ k: 'acao', l: 'Ação' }, { k: 'canal', l: 'Canal' }, { k: 'valor', l: 'R$ por mês', t: 'num', w: '140px' }], { total: () => brl(C.mkt), totalSpan: 2 }))}
+      ${panel('Aquisição e retenção', 'Base para CAC (custo de aquisição) e LTV (valor do cliente no tempo)', `<div class="grid g4">
+        ${field('marketing.novosClientes', 'Novos clientes por mês', { type: 'number' })}${field('marketing.ticket', 'Ticket médio', { type: 'number', pre: 'R$' })}
+        ${field('marketing.freqAno', 'Compras por cliente ao ano', { type: 'number' })}${field('marketing.anosRetencao', 'Anos de relacionamento', { type: 'number' })}</div>`)}
+    </div>`,
+  regions: {
+    mk: () => [
+      kpi('Verba mensal', brl0(C.mkt), C.anos[0]?.receita ? pct(C.mkt * 12 / C.anos[0].receita) + ' da receita do ano 1' : ''),
+      kpi('CAC', brl(C.cac), 'verba ÷ novos clientes'),
+      kpi('LTV', brl(C.ltv), 'ticket × frequência × anos × MC%'),
+      kpi('LTV / CAC', Number.isFinite(C.ltvCac) ? fN1.format(C.ltvCac) + '×' : '—', C.ltvCac >= 3 ? pill('good', 'Saudável') : C.ltvCac >= 1 ? pill('warn', 'Apertado') : pill('bad', 'Prejuízo por cliente'))
+    ].join('')
+  }
+};
+
+V.operacional = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">06 · Plano operacional</div><h2>Operacional</h2>
+      <p class="lead">Estrutura, equipe, custos fixos, capacidade produtiva e fornecedores.</p></div></div>
+    <div class="stack">
+      <div class="kpis" data-region="opk"></div>
+      ${panel('Estrutura e processos', '', `<div class="grid g2">${field('operacional.localizacao', 'Localização e instalações', { type: 'textarea', rows: 6 })}${field('operacional.processos', 'Processo operacional (passo a passo)', { type: 'textarea', rows: 6 })}</div>
+        <div class="grid g4">${field('operacional.capacidadeMensal', 'Capacidade produtiva', { type: 'number', suf: 'un/mês', hint: 'Soma de todos os produtos' })}</div>`)}
+      ${panel('Equipe', 'Salários mensais; encargos aplicados sobre o total', `<div class="grid g4">${field('operacional.encargosPct', 'Encargos e benefícios', { type: 'number', suf: '%' })}</div>
+        ${table('operacional.equipe', [{ k: 'cargo', l: 'Cargo' }, { k: 'qtd', l: 'Qtd.', t: 'num', w: '90px' }, { k: 'salario', l: 'Salário R$', t: 'num', w: '140px' }, { k: '_t', l: 'Custo c/ encargos', calc: r => brl(n(r.qtd) * n(r.salario) * (1 + n(S.operacional.encargosPct) / 100)) }], { total: () => brl(C.folha), totalSpan: 3 })}`)}
+      ${panel('Custos fixos mensais', 'Inclua o pró-labore dos sócios', table('operacional.custosFixos', [{ k: 'item', l: 'Item' }, { k: 'valor', l: 'R$ por mês', t: 'num', w: '160px' }], { total: () => brl(C.fixosItens), totalSpan: 1 }))}
+      ${panel('Fornecedores', '', table('operacional.fornecedores', [{ k: 'nome', l: 'Fornecedor' }, { k: 'item', l: 'O que fornece' }, { k: 'prazo', l: 'Prazo de entrega', w: '140px' }, { k: 'condicao', l: 'Condição de pagamento' }]))}
+    </div>`,
+  regions: {
+    opk: () => [
+      kpi('Custo fixo mensal', brl0(C.fixoTotal), 'folha + fixos + marketing + depreciação'),
+      kpi('Folha com encargos', brl0(C.folha), `${num(sum(S.operacional.equipe, e => e.qtd))} pessoas`),
+      kpi('Pico de produção', num(C.maxUnid) + ' un', 'maior mês da projeção'),
+      kpi('Uso da capacidade', n(S.operacional.capacidadeMensal) > 0 ? pct(C.maxUnid / n(S.operacional.capacidadeMensal), 0) : '—', C.capOk ? pill('good', 'Atende') : pill('warn', 'Precisa ampliar'))
+    ].join('')
+  }
+};
+
+V.investimento = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">07 · Investimento inicial</div><h2>Investimento</h2>
+      <p class="lead">Tudo que precisa ser gasto antes de abrir as portas, a reserva de capital de giro e como será financiado.</p></div></div>
+    <div class="stack">
+      <div class="kpis" data-region="invk"></div>
+      ${panel('Investimentos fixos', 'Máquinas, equipamentos e móveis. A vida útil define a depreciação mensal.', table('investimento.fixos', [{ k: 'item', l: 'Item' }, { k: 'qtd', l: 'Qtd.', t: 'num', w: '80px' }, { k: 'valor', l: 'Valor unit. R$', t: 'num', w: '140px' }, { k: 'vida', l: 'Vida útil (anos)', t: 'num', w: '130px' }, { k: '_t', l: 'Total', calc: r => brl(n(r.qtd) * n(r.valor)) }], { total: () => brl(C.inv.fixos), totalSpan: 4 }))}
+      ${panel('Despesas pré-operacionais', 'Reforma, legalização, estoque inicial, lançamento', table('investimento.preop', [{ k: 'item', l: 'Item' }, { k: 'valor', l: 'Valor R$', t: 'num', w: '160px' }], { total: () => brl(C.inv.preop), totalSpan: 1 }))}
+      ${panel('Capital de giro e MVP', '', `<div class="grid g4">${field('investimento.mesesGiro', 'Reserva de capital de giro', { type: 'number', suf: 'meses', hint: 'Meses de custos fixos (sem depreciação)' })}</div>
+        ${field('investimento.incluirMvp', 'Somar o custo do MVP ao investimento inicial', { type: 'check' })}<div data-region="giro"></div>`)}
+      ${panel('Fontes de recursos', 'Financiamento pela tabela Price, com carência apenas de juros', `<div class="grid g4">
+        ${field('investimento.fin.valor', 'Valor financiado', { type: 'number', pre: 'R$' })}${field('investimento.fin.taxa', 'Juros', { type: 'number', suf: '% a.m.' })}
+        ${field('investimento.fin.prazo', 'Prazo total', { type: 'number', suf: 'meses' })}${field('investimento.fin.carencia', 'Carência', { type: 'number', suf: 'meses' })}</div><div data-region="fin"></div>`)}
+    </div>`,
+  regions: {
+    invk: () => [
+      kpi('Investimento total', brl0(C.inv.total)),
+      kpi('Fixos', brl0(C.inv.fixos), pct(C.inv.fixos / C.inv.total, 0) + ' do total'),
+      kpi('Pré-operacional', brl0(C.inv.preop), pct(C.inv.preop / C.inv.total, 0) + ' do total'),
+      kpi('Capital de giro', brl0(C.inv.giro), pct(C.inv.giro / C.inv.total, 0) + ' do total'),
+      kpi('MVP', brl0(C.inv.mvp), S.investimento.incluirMvp ? 'incluído' : 'não incluído')
+    ].join(''),
+    giro: () => `<p class="hint">Reserva calculada: ${num(n(S.investimento.mesesGiro))} × ${brl0(C.fixoCaixa)} = <b>${brl0(C.inv.giro)}</b>. Menor saldo de caixa projetado: <b class="${sg(C.caixaMin)}">${brl0(C.caixaMin)}</b> no mês ${C.mesCaixaMin}.</p>`,
+    fin: () => `<div class="breakdown">
+      <div><span>Capital próprio</span><b>${brl0(C.inv.proprio)}</b></div>
+      <div><span>Financiado</span><b>${brl0(C.inv.fin)}</b></div>
+      <div><span>Parcela (após carência)</span><b>${brl(C.inv.pmt)}</b></div>
+      <div><span>Juros totais</span><b>${brl0(sum(C.rows, r => r.juros))}</b></div></div>
+      ${n(S.investimento.fin.valor) > C.inv.total ? '<p class="hint neg">O valor financiado foi limitado ao investimento total.</p>' : ''}`
+  }
+};
+
+V.financeiro = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">08 · Plano financeiro</div><h2>Financeiro</h2>
+      <p class="lead">Demonstração de resultado (DRE) e fluxo de caixa projetados. Preços e custos são reajustados pela inflação a cada 12 meses.</p></div></div>
+    <div class="stack">
+      ${panel('Premissas financeiras', '', `<div class="grid g4">
+        ${field('premissas.tmaAnual', 'TMA (taxa mínima de atratividade)', { type: 'number', suf: '% a.a.', hint: 'Quanto o dinheiro renderia em outra aplicação' })}
+        ${field('premissas.inflacaoAnual', 'Inflação / reajuste anual', { type: 'number', suf: '%' })}
+        ${field('premissas.horizonte', 'Horizonte da análise', { type: 'number', suf: 'meses', hint: 'De 12 a 120' })}
+        ${field('premissas.irPct', 'IR/CSLL sobre o lucro', { type: 'number', suf: '%', hint: 'Use 0 no Simples (já está no imposto sobre venda)' })}</div>`)}
+      ${panel('DRE anual', '', `<div data-region="dre"></div>`)}
+      ${panel('Projeção mensal', 'Fluxo do projeto = lucro operacional após IR + depreciação. Saldo de caixa inclui financiamento.', `<div data-region="mensal"></div>`)}
+    </div>`,
+  regions: {
+    dre: () => {
+      const A = C.anos;
+      const line = (l, k, cls = '', sig = 1) => `<tr class="${cls}"><td>${l}</td>${A.map(a => `<td class="n ${sg(a[k] * sig)}">${brl0(a[k] * sig)}</td>`).join('')}</tr>`;
+      const pl = (l, f) => `<tr class="sub"><td>${l}</td>${A.map(a => `<td class="n">${pct(f(a))}</td>`).join('')}</tr>`;
+      return `<div class="tw"><table class="ro"><thead><tr><th>Conta</th>${A.map(a => `<th class="n">Ano ${a.ano}${a.meses < 12 ? ` (${a.meses}m)` : ''}</th>`).join('')}</tr></thead><tbody>
+        ${line('Receita bruta', 'receita', 'total')}
+        ${line('(−) Impostos, comissões e taxas', 'ded', '', -1)}
+        ${line('(−) Custo dos produtos vendidos', 'cpv', '', -1)}
+        ${line('= Margem de contribuição', 'mc', 'total')}
+        ${pl('Margem de contribuição %', a => a.mc / a.receita)}
+        ${line('(−) Custos fixos', 'fixos', '', -1)}
+        ${line('= EBITDA', 'ebitda', 'total')}
+        ${line('(−) Depreciação', 'deprec', '', -1)}
+        ${line('(−) Juros', 'juros', '', -1)}
+        ${line('= Lucro antes do IR', 'lair')}
+        ${line('(−) IR/CSLL', 'ir', '', -1)}
+        ${line('= Lucro líquido', 'll', 'total')}
+        ${pl('Lucratividade', a => a.ll / a.receita)}
+        ${line('Fluxo de caixa do projeto', 'fc')}
+        ${line('(−) Amortização do financiamento', 'amort', '', -1)}
+        ${line('Saldo de caixa no fim do ano', 'caixaFim')}
+      </tbody></table></div>`;
+    },
+    mensal: () => `<div class="tw" style="max-height:480px;overflow:auto"><table class="ro"><thead><tr style="position:sticky;top:0"><th>Mês</th><th class="n">Receita</th><th class="n">Deduções</th><th class="n">CPV</th><th class="n">Margem contrib.</th><th class="n">Fixos</th><th class="n">Depreciação</th><th class="n">Juros</th><th class="n">Lucro líquido</th><th class="n">Fluxo projeto</th><th class="n">Acumulado</th><th class="n">Saldo de caixa</th></tr></thead><tbody>
+      <tr><td>0 · investimento</td><td class="n" colspan="8"></td><td class="n neg">${brl0(C.fluxos[0])}</td><td class="n neg">${brl0(C.fluxos[0])}</td><td class="n">${brl0(C.inv.giro)}</td></tr>
+      ${C.rows.map(r => `<tr><td>${r.m} · ${r.label}</td><td class="n">${brl0(r.receita)}</td><td class="n">${brl0(r.ded)}</td><td class="n">${brl0(r.cpv)}</td><td class="n">${brl0(r.mc)}</td><td class="n">${brl0(r.fixos)}</td><td class="n">${brl0(r.deprec)}</td><td class="n">${brl0(r.juros)}</td><td class="n ${sg(r.ll)}">${brl0(r.ll)}</td><td class="n ${sg(r.fc)}">${brl0(r.fc)}</td><td class="n ${sg(r.acc)}">${brl0(r.acc)}</td><td class="n ${sg(r.caixa)}">${brl0(r.caixa)}</td></tr>`).join('')}
+    </tbody></table></div>`
+  }
+};
+
+V.viabilidade = {
+  html: () => `
+    <div class="head"><div><div class="eyebrow">09 · Análise de viabilidade</div><h2>Viabilidade</h2>
+      <p class="lead">Retorno, prazo e risco do investimento comparados à taxa mínima de atratividade.</p></div></div>
+    <div class="stack">
+      <div data-region="verdict"></div>
+      <div class="kpis" data-region="vk"></div>
+      <div class="grid g2">
+        ${panel('Critérios avaliados', '', '<ul class="checks" data-region="checks"></ul>')}
+        ${panel('Ponto de equilíbrio', 'Média mensal do ano 1', '<div data-region="pe"></div>')}
+      </div>
+      ${panel('Tempo de retorno', 'Fluxo acumulado simples e descontado pela TMA', '<div class="legend"><span><i style="background:var(--s1)"></i>Acumulado simples</span><span><i style="background:var(--s2)"></i>Acumulado descontado</span></div><div class="chart tall"><canvas id="chPb" aria-label="Payback simples e descontado" role="img"></canvas></div>')}
+    </div>`,
+  regions: {
+    verdict: () => verdictBlock(),
+    vk: () => [
+      kpi('VPL', brl0(C.vpl), 'valor criado acima da TMA', sg(C.vpl)),
+      kpi('TIR anual', Number.isFinite(C.tirA) ? pct(C.tirA) : '—', Number.isFinite(C.tirM) ? `${pct(C.tirM, 2)} ao mês` : 'fluxo sem troca de sinal'),
+      kpi('Payback simples', Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna', Number.isFinite(C.pb) ? fN1.format(C.pb / 12) + ' anos' : ''),
+      kpi('Payback descontado', Number.isFinite(C.pbD) ? fN1.format(C.pbD) + ' meses' : 'não retorna', Number.isFinite(C.pbD) ? fN1.format(C.pbD / 12) + ' anos' : ''),
+      kpi('Rentabilidade', pct(C.rentab), 'lucro médio anual ÷ investimento'),
+      kpi('ROI no horizonte', pct(C.roi, 0), `em ${C.H} meses`),
+      kpi('Lucratividade', pct(C.lucrat1), `ano 1 · ano 2: ${pct(C.lucrat2)}`),
+      kpi('Equilíbrio operacional', C.mesEquilibrio ? 'mês ' + C.mesEquilibrio : 'não atinge', 'primeiro mês com lucro operacional')
+    ].join(''),
+    checks: () => C.checks.map(c => `<li><span>${c.nome}</span>${pill(c.ok, c.val)}<small>${c.info}</small></li>`).join(''),
+    pe: () => `<div class="breakdown">
+        <div class="hl"><span>PE contábil</span><b>${brl0(C.peR)}/mês</b></div>
+        <div><span>PE econômico (com TMA)</span><b>${brl0(C.peEcon)}/mês</b></div>
+        <div><span>Receita média prevista</span><b>${brl0(C.receitaMes1)}/mês</b></div>
+        <div><span>Margem de segurança</span><b class="${sg(C.margemSeg)}">${pct(C.margemSeg)}</b></div>
+        <div><span>Margem de contribuição</span><b>${pct(C.mcPct1)}</b></div>
+        <div><span>Custo fixo médio</span><b>${brl0(C.peR * C.mcPct1)}/mês</b></div></div>
+      <div class="tw"><table class="ro"><thead><tr><th>Produto</th><th class="n">Unid./mês no PE</th><th class="n">Unid./dia (26 dias)</th></tr></thead><tbody>
+      ${C.prods.map((x, i) => `<tr><td>${esc(x.p.nome)}</td><td class="n">${num(C.peUnid[i])} ${esc(x.p.unidade)}</td><td class="n">${num(C.peUnid[i] / 26)}</td></tr>`).join('')}</tbody></table></div>
+      <p class="hint">PE contábil = custos fixos ÷ margem de contribuição %. O econômico soma o rendimento que o investimento teria na TMA.</p>`
+  },
+  after: () => drawPayback()
+};
+
+/* ---------- gráficos ---------- */
+const charts = {};
+function tok(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function mkChart(id, cfg) {
+  if (!window.Chart) return;
+  const el = document.getElementById(id); if (!el) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(el, cfg);
+}
+function baseOpts(yFmt) {
+  const ink = tok('--ink-2'), line = tok('--line');
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: tok('--surface'), titleColor: tok('--ink'), bodyColor: tok('--ink-2'), borderColor: line, borderWidth: 1, padding: 10, boxPadding: 4,
+      callbacks: { label: c => ` ${c.dataset.label}: ${brl0(c.parsed.y ?? c.parsed.x)}` } } },
+    scales: {
+      x: { grid: { display: false }, border: { color: line }, ticks: { color: ink, font: { family: 'IBM Plex Sans', size: 11 }, maxRotation: 0, autoSkipPadding: 14 } },
+      y: { grid: { color: line }, border: { display: false }, ticks: { color: ink, font: { family: 'IBM Plex Sans', size: 11 }, callback: yFmt || (v => kbrl(v)) } }
+    }
+  };
+}
+function drawDashboard() {
+  const s1 = tok('--s1'), s2 = tok('--s2'), s3 = tok('--s3'), surf = tok('--surface');
+  const lbl = C.rows.map(r => r.label);
+  mkChart('chRec', { type: 'line', data: { labels: lbl, datasets: [
+    { label: 'Receita bruta', data: C.rows.map(r => r.receita), borderColor: s1, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .25 },
+    { label: 'Custos totais', data: C.rows.map(r => r.custosTot), borderColor: s2, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .25 }
+  ] }, options: baseOpts() });
+  const accO = baseOpts();
+  mkChart('chAcc', { type: 'line', data: { labels: ['início', ...lbl], datasets: [
+    { label: 'Acumulado', data: [C.fluxos[0], ...C.rows.map(r => r.acc)], borderColor: s1, backgroundColor: s1 + '22', fill: 'origin', borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .2 }
+  ] }, options: accO, plugins: [zeroLine()] });
+  mkChart('chAno', { type: 'bar', data: { labels: C.anos.map(a => 'Ano ' + a.ano), datasets: [
+    { label: 'Receita bruta', data: C.anos.map(a => a.receita), backgroundColor: s1, borderRadius: 4, borderSkipped: 'bottom', maxBarThickness: 36, borderColor: surf, borderWidth: { left: 1, right: 1 } },
+    { label: 'Lucro líquido', data: C.anos.map(a => a.ll), backgroundColor: s3, borderRadius: 4, borderSkipped: 'bottom', maxBarThickness: 36, borderColor: surf, borderWidth: { left: 1, right: 1 } }
+  ] }, options: baseOpts(), plugins: [zeroLine()] });
+  const r12 = C.rows[Math.min(11, C.rows.length - 1)];
+  const juros = r12.juros;
+  const items = [
+    ['Insumos e produção (CPV)', r12.cpv], ['Impostos e taxas de venda', r12.ded], ['Folha com encargos', C.folha],
+    ['Custos fixos operacionais', C.fixosItens], ['Marketing', C.mkt], ['Depreciação', C.deprec], ['Juros', juros]
+  ].filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  const o = baseOpts();
+  o.indexAxis = 'y';
+  o.interaction = { mode: 'nearest', axis: 'y', intersect: false };
+  o.scales.x = { grid: { color: tok('--line') }, border: { display: false }, ticks: { color: tok('--ink-2'), font: { size: 11 }, callback: v => kbrl(v) } };
+  o.scales.y = { grid: { display: false }, border: { color: tok('--line') }, ticks: { color: tok('--ink-2'), font: { family: 'IBM Plex Sans', size: 11 } } };
+  o.plugins.tooltip.callbacks.label = c => ` ${brl0(c.parsed.x)}`;
+  mkChart('chComp', { type: 'bar', data: { labels: items.map(x => x[0]), datasets: [{ label: 'Valor', data: items.map(x => x[1]), backgroundColor: s1, borderRadius: 4, borderSkipped: 'left', maxBarThickness: 22 }] }, options: o });
+}
+function drawPayback() {
+  const s1 = tok('--s1'), s2 = tok('--s2');
+  const lbl = ['0', ...C.rows.map(r => String(r.m))];
+  const o = baseOpts();
+  o.scales.x.title = { display: true, text: 'meses', color: tok('--muted'), font: { size: 11 } };
+  mkChart('chPb', { type: 'line', data: { labels: lbl, datasets: [
+    { label: 'Acumulado simples', data: [C.fluxos[0], ...C.rows.map(r => r.acc)], borderColor: s1, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .2 },
+    { label: 'Acumulado descontado', data: [C.fluxos[0], ...C.rows.map(r => r.accD)], borderColor: s2, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .2 }
+  ] }, options: o, plugins: [zeroLine()] });
+}
+function zeroLine() {
+  return { id: 'zero', afterDatasetsDraw(ch) {
+    const y = ch.scales.y; if (!y || y.min > 0 || y.max < 0) return;
+    const p = y.getPixelForValue(0), ctx = ch.ctx;
+    ctx.save(); ctx.strokeStyle = tok('--muted'); ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(ch.chartArea.left, p); ctx.lineTo(ch.chartArea.right, p); ctx.stroke(); ctx.restore();
+  } };
+}
+
+/* ---------- renderização ---------- */
+const main = document.getElementById('main');
+function renderNav() {
+  document.getElementById('tabs').innerHTML = TABS.map(t => `<button role="tab" data-tab="${t.id}" aria-selected="${t.id === tab}"><span class="k">${t.k}</span>${t.t}</button>`).join('');
+}
+function actionsHtml() {
+  return `<button class="btn sm" data-act="export">Baixar plano (.json)</button>
+    <button class="btn sm" data-act="copy">Copiar dados</button>
+    <button class="btn sm" data-act="import">Importar .json</button>
+    <button class="btn sm" data-act="reset">Recarregar exemplo</button>
+    <button class="btn sm" data-act="clear">Começar do zero</button>`;
+}
+function render() {
+  C = compute(S);
+  if (!V[tab]) tab = 'painel';
+  renderNav();
+  document.getElementById('brandName').textContent = S.empresa.nome || 'Meu negócio';
+  document.getElementById('sideFoot').innerHTML = (S._exemplo ? '<span class="example-note">Dados de exemplo — edite à vontade</span>' : '') + actionsHtml();
+  Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
+  main.innerHTML = `<div class="view">${V[tab].html()}</div><div class="mobilebar">${actionsHtml()}</div>`;
+  refresh(false);
+}
+function refresh(recompute = true) {
+  if (recompute) C = compute(S);
+  const regs = V[tab].regions || {};
+  main.querySelectorAll('[data-region]').forEach(el => {
+    const k = el.dataset.region;
+    if (k.startsWith('ps')) { el.innerHTML = prodSummary(+k.slice(2)); return; }
+    if (k.startsWith('pc')) { el.innerHTML = prodCalc(+k.slice(2)); return; }
+    if (regs[k]) el.innerHTML = regs[k]();
+  });
+  // células calculadas de tabelas
+  main.querySelectorAll('[data-calc]').forEach(el => {
+    const [path, i, k] = el.dataset.calc.split(':');
+    const tbl = findCalc(path, i, k);
+    if (tbl != null) el.innerHTML = tbl;
+  });
+  document.getElementById('brandName').textContent = S.empresa.nome || 'Meu negócio';
+  V[tab].after && V[tab].after();
+}
+const calcIndex = {};
+function findCalc(path, i, k) {
+  // recria o HTML da tabela correspondente para ler a coluna calculada
+  const fn = calcIndex[path + ':' + k];
+  if (i === 'total') return calcIndex[path + ':total'] ? calcIndex[path + ':total']() : null;
+  return fn ? fn(getPath(path)[+i], +i) : null;
+}
+// registra funções de colunas calculadas ao montar tabelas
+const _table = table;
+table = function (path, cols, o = {}) {
+  cols.forEach(c => { if (c.calc) calcIndex[path + ':' + c.k] = c.calc; });
+  if (o.total) calcIndex[path + ':total'] = o.total;
+  return _table(path, cols, o);
+};
+
+/* ---------- eventos ---------- */
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]'); if (!b) return;
+  tab = b.dataset.tab;
+  try { localStorage.setItem(STORE_KEY + ':tab', tab); } catch (err) {}
+  render();
+  window.scrollTo({ top: 0 });
+});
+document.addEventListener('input', e => {
+  const el = e.target.closest('[data-path]'); if (!el) return;
+  let v = el.type === 'checkbox' ? el.checked : el.value;
+  if (el.hasAttribute('data-num')) v = v === '' ? 0 : Number(v);
+  setPath(el.dataset.path, v);
+  if (S._exemplo) delete S._exemplo;
+  save();
+  // nome de produto altera o título do cartão
+  const m = /^produtos\.(\d+)\.nome$/.exec(el.dataset.path);
+  if (m) { const h = el.closest('details')?.querySelector('summary h3'); if (h) h.textContent = v || 'Produto'; }
+  refresh();
+});
+document.addEventListener('change', e => { if (e.target.matches('select[data-path], input[type=checkbox][data-path]')) e.target.dispatchEvent(new Event('input', { bubbles: true })); });
+document.addEventListener('click', e => {
+  const add = e.target.closest('[data-add]');
+  if (add) { getPath(add.dataset.add).push(TPL[add.dataset.tpl]()); save(); render(); return; }
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    if (del.dataset.confirm !== '1') { del.dataset.confirm = '1'; const t = del.textContent; del.textContent = del.textContent === '✕' ? 'Remover?' : 'Confirmar remoção'; setTimeout(() => { if (del.isConnected) { del.dataset.confirm = ''; del.textContent = t; } }, 2500); return; }
+    getPath(del.dataset.del).splice(+del.dataset.i, 1); save(); render(); return;
+  }
+  const act = e.target.closest('[data-act]');
+  if (act) doAction(act.dataset.act, act);
+});
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
+}
+function doAction(a, btn) {
+  if (a === 'export') {
+    const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a'); link.href = url; link.download = (S.empresa.nome || 'plano').replace(/[^\w\-]+/g, '-').toLowerCase() + '.json';
+    document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('Arquivo gerado. Se nada baixou, use “Copiar dados”.');
+  } else if (a === 'copy') {
+    const txt = JSON.stringify(S, null, 2);
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Dados copiados'), () => toast('Não foi possível copiar neste navegador'));
+  } else if (a === 'import') {
+    document.getElementById('importFile').click();
+  } else if (a === 'reset' || a === 'clear') {
+    if (btn.dataset.confirm !== '1') { btn.dataset.confirm = '1'; const t = btn.textContent; btn.textContent = 'Clique de novo para confirmar'; setTimeout(() => { if (btn.isConnected) { btn.dataset.confirm = ''; btn.textContent = t; } }, 3000); return; }
+    S = a === 'reset' ? exemplo() : vazio(); save(); render(); toast(a === 'reset' ? 'Exemplo recarregado' : 'Plano em branco criado');
+  }
+}
+document.getElementById('importFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try { const d = JSON.parse(r.result); if (!d.empresa || !d.produtos) throw 0; S = merge(exemplo(), d); delete S._exemplo; if (d._exemplo) S._exemplo = true; save(); render(); toast('Plano importado'); }
+    catch (err) { toast('Arquivo inválido: use um .json exportado por este app'); }
+  };
+  r.readAsText(f); e.target.value = '';
+});
+function merge(base, d) {
+  for (const k in d) {
+    if (d[k] && typeof d[k] === 'object' && !Array.isArray(d[k]) && base[k] && typeof base[k] === 'object') base[k] = merge(base[k], d[k]);
+    else base[k] = d[k];
+  }
+  return base;
+}
+function vazio() {
+  const e = exemplo();
+  Object.keys(e.empresa).forEach(k => e.empresa[k] = '');
+  e.empresa.nome = 'Meu negócio';
+  e.empresa.inicio = new Date().toISOString().slice(0, 7);
+  e.produtos = [TPL.produtos()];
+  e.comercial = { canais: [{ canal: 'Venda direta', part: 100, taxa: 0 }], sazonalidade: Array(12).fill(100), politica: '', metas: '', prazoRecebimento: '' };
+  Object.keys(e.marketing).forEach(k => { if (typeof e.marketing[k] === 'string') e.marketing[k] = ''; });
+  e.marketing.concorrentes = []; e.marketing.orcamento = [];
+  e.operacional.localizacao = ''; e.operacional.processos = ''; e.operacional.equipe = []; e.operacional.custosFixos = [{ item: 'Aluguel', valor: 0 }]; e.operacional.fornecedores = [];
+  e.investimento.fixos = []; e.investimento.preop = []; e.investimento.fin = { valor: 0, taxa: 0, prazo: 0, carencia: 0 };
+  e.mvp = { hipotese: '', problema: '', metrica: '', custoHora: 0, horasSemana: 20, features: [], alcance: 0, conversaoPct: 0, ticketTeste: 0, metaPedidos: 0, marketingTeste: 0 };
+  delete e._exemplo;
+  return e;
+}
+// gráficos acompanham a troca de tema
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => V[tab].after && V[tab].after()); } catch (e) {}
+new MutationObserver(() => V[tab].after && V[tab].after()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+{ const stored = load(); S = stored ? merge(exemplo(), stored) : exemplo(); if (stored && !stored._exemplo) delete S._exemplo; }
+render();
+</script>
+</body>
+</html>
