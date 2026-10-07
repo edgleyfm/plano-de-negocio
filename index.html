@@ -171,6 +171,7 @@ table.ro td:first-child { white-space: normal; min-width: 180px; }
 .breakdown b { font-variant-numeric: tabular-nums; font-size: 15px; }
 .breakdown .hl { background: var(--accent-soft); }
 
+.topbar { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 14px; }
 .side-label { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 2px 0; }
 .brand img { max-width: 120px; max-height: 44px; object-fit: contain; margin-bottom: 6px; align-self: flex-start; }
 .logo-row { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: 20px; align-items: start; }
@@ -245,7 +246,7 @@ function exemplo() {
       oportunidades: 'Datas sazonais (Páscoa, Dia das Mães, Natal); kits corporativos; parcerias com buffets.',
       ameacas: 'Alta do cacau; concorrência de produção caseira; taxas altas de aplicativos de entrega.'
     },
-    premissas: { impostosPct: 6, comissaoPct: 0, tmaAnual: 15, inflacaoAnual: 4.5, horizonte: 60, mesesCrescimento: 24, irPct: 0 },
+    premissas: { impostosPct: 6, comissaoPct: 0, tmaAnual: 15, inflacaoAnual: 4.5, horizonte: 60, mesesCrescimento: 24, irPct: 0, cenarioPct: 20 },
     produtos: [
       { id: uid(), nome: 'Brigadeiro gourmet', unidade: 'un', margemPct: 12, vendasMes1: 2600, crescimentoPct: 3, precoManual: 4.5, minutosMO: 1.2, embalagem: 0, outros: 0.05,
         insumos: [
@@ -566,14 +567,14 @@ function compute(s) {
   const ltvCac = cac > 0 ? ltv / cac : NaN;
 
   const checks = [
-    { nome: 'Valor presente líquido (VPL) positivo', ok: vpl > 0 ? 'good' : 'bad', val: brl0(vpl), info: `Descontado à TMA de ${pct(n(P.tmaAnual) / 100)} a.a. em ${H} meses.` },
-    { nome: 'TIR acima da TMA', ok: Number.isFinite(tirA) && tirA > n(P.tmaAnual) / 100 ? 'good' : 'bad', val: Number.isFinite(tirA) ? pct(tirA) + ' a.a.' : 'sem TIR', info: 'Taxa que zera o VPL do fluxo do projeto.' },
-    { nome: 'Payback dentro do horizonte', ok: !Number.isFinite(pb) ? 'bad' : pb <= 36 ? 'good' : 'warn', val: meses(pb), info: 'Até 36 meses é considerado saudável para pequeno varejo.' },
-    { nome: 'Caixa nunca fica negativo', ok: caixaMin >= 0 ? 'good' : 'bad', val: brl0(caixaMin), info: caixaMin >= 0 ? `Menor saldo no mês ${mesCaixaMin}.` : `Faltam ${brl0(-caixaMin)} de capital de giro (mês ${mesCaixaMin}).` },
-    { nome: 'Margem de segurança no ano 1', ok: !Number.isFinite(margemSeg) ? 'bad' : margemSeg >= 0.2 ? 'good' : margemSeg >= 0 ? 'warn' : 'bad', val: pct(margemSeg), info: 'Quanto a receita média supera o ponto de equilíbrio. Acima de 20% é confortável.' },
-    { nome: 'Capacidade produtiva atende a demanda', ok: capOk ? 'good' : 'warn', val: capOk ? 'Atende' : `Estoura no mês ${mesCapEstouro}`, info: `Pico de ${num(maxUnid)} unidades/mês contra capacidade de ${num(n(O.capacidadeMensal))}.` },
-    { nome: 'LTV / CAC', ok: !Number.isFinite(ltvCac) ? 'warn' : ltvCac >= 3 ? 'good' : ltvCac >= 1 ? 'warn' : 'bad', val: Number.isFinite(ltvCac) ? fN1.format(ltvCac) + '×' : '—', info: 'Valor de um cliente dividido pelo custo para conquistá-lo. Meta: 3× ou mais.' },
-    { nome: 'Preços cobrem custos e margem desejada', ok: rateioOk && prods.every(x => Number.isFinite(x.preco) && x.mcUnit > 0) ? 'good' : 'bad', val: rateioOk ? 'Sim' : 'Volume insuficiente', info: 'Markup consegue absorver custos variáveis, rateio dos fixos e margem.' }
+    { id: 'vpl', nome: 'Valor presente líquido (VPL) positivo', ok: vpl > 0 ? 'good' : 'bad', val: brl0(vpl), info: `Descontado à TMA de ${pct(n(P.tmaAnual) / 100)} a.a. em ${H} meses.` },
+    { id: 'tir', nome: 'TIR acima da TMA', ok: Number.isFinite(tirA) && tirA > n(P.tmaAnual) / 100 ? 'good' : 'bad', val: Number.isFinite(tirA) ? pct(tirA) + ' a.a.' : 'sem TIR', info: 'Taxa que zera o VPL do fluxo do projeto.' },
+    { id: 'payback', nome: 'Payback dentro do horizonte', ok: !Number.isFinite(pb) ? 'bad' : pb <= 36 ? 'good' : 'warn', val: meses(pb), info: 'Até 36 meses é considerado saudável para pequeno varejo.' },
+    { id: 'caixa', nome: 'Caixa nunca fica negativo', ok: caixaMin >= 0 ? 'good' : 'bad', val: brl0(caixaMin), info: caixaMin >= 0 ? `Menor saldo no mês ${mesCaixaMin}.` : `Faltam ${brl0(-caixaMin)} de capital de giro (mês ${mesCaixaMin}).` },
+    { id: 'margem', nome: 'Margem de segurança no ano 1', ok: !Number.isFinite(margemSeg) ? 'bad' : margemSeg >= 0.2 ? 'good' : margemSeg >= 0 ? 'warn' : 'bad', val: pct(margemSeg), info: 'Quanto a receita média supera o ponto de equilíbrio. Acima de 20% é confortável.' },
+    { id: 'capacidade', nome: 'Capacidade produtiva atende a demanda', ok: capOk ? 'good' : 'warn', val: capOk ? 'Atende' : `Estoura no mês ${mesCapEstouro}`, info: `Pico de ${num(maxUnid)} unidades/mês contra capacidade de ${num(n(O.capacidadeMensal))}.` },
+    { id: 'ltv', nome: 'LTV / CAC', ok: !Number.isFinite(ltvCac) ? 'warn' : ltvCac >= 3 ? 'good' : ltvCac >= 1 ? 'warn' : 'bad', val: Number.isFinite(ltvCac) ? fN1.format(ltvCac) + '×' : '—', info: 'Valor de um cliente dividido pelo custo para conquistá-lo. Meta: 3× ou mais.' },
+    { id: 'preco', nome: 'Preços cobrem custos e margem desejada', ok: rateioOk && prods.every(x => Number.isFinite(x.preco) && x.mcUnit > 0) ? 'good' : 'bad', val: rateioOk ? 'Sim' : 'Volume insuficiente', info: 'Markup consegue absorver custos variáveis, rateio dos fixos e margem.' }
   ];
   const bad = checks.filter(c => c.ok === 'bad').length, warn = checks.filter(c => c.ok === 'warn').length;
   const core = vpl > 0 && Number.isFinite(pb);
@@ -583,7 +584,7 @@ function compute(s) {
     mvp: { feats: mvpFeat, custo: mvpCusto, horas: mvpHoras, semanas: mvpSemanas, pedidos: mvpPedidos, receita: mvpReceita, cac: mvpCac },
     inv: { fixos: invFixos, preop: invPreop, giro: invGiro, mvp: invMvp, total: invTotal, fin: finV, proprio, pmt, nAm, fCar },
     rows, anos, fluxos, tmaM, vpl, tirM, tirA, pb, pbD, mcPct1, peR, peEcon, peUnid, margemSeg, receitaMes1, mesEquilibrio, caixaMin, mesCaixaMin,
-    rentab, roi, lucrat1, lucrat2, maxUnid, capOk, cac, ltv, ltvCac, checks, verdict };
+    rentab, roi, lucrat1, lucrat2, maxUnid, capOk, mesCapEstouro, cac, ltv, ltvCac, checks, verdict };
 }
 function rotuloMes(ano, mes0, m) {
   const d = mes0 + m - 1;
@@ -1006,6 +1007,7 @@ V.viabilidade = {
         ${panel('Critérios avaliados', '', '<ul class="checks" data-region="checks"></ul>')}
         ${panel('Ponto de equilíbrio', 'Média mensal do ano 1', '<div data-region="pe"></div>')}
       </div>
+      ${panel('Cenários', 'Volume de vendas abaixo e acima do previsto, com preços e custos fixos mantidos', `<div class="grid g4">${field('premissas.cenarioPct', 'Variação do volume', { type: 'number', suf: '%' })}</div><div data-region="cen"></div>`)}
       ${panel('Tempo de retorno', 'Fluxo acumulado simples e descontado pela TMA', '<div class="legend"><span><i style="background:var(--s1)"></i>Acumulado simples</span><span><i style="background:var(--s2)"></i>Acumulado descontado</span></div><div class="chart tall"><canvas id="chPb" aria-label="Payback simples e descontado" role="img"></canvas></div>')}
     </div>`,
   regions: {
@@ -1020,6 +1022,20 @@ V.viabilidade = {
       kpi('Lucratividade', pct(C.lucrat1), `ano 1 · ano 2: ${pct(C.lucrat2)}`),
       kpi('Equilíbrio operacional', C.mesEquilibrio ? 'mês ' + C.mesEquilibrio : 'não atinge', 'primeiro mês com lucro operacional')
     ].join(''),
+    cen: () => {
+      const cs = cenarios(), cp = n(S.premissas.cenarioPct) || 20;
+      const row = (l, f) => `<tr><td>${l}</td>${cs.map(c => `<td class="n">${f(c)}</td>`).join('')}</tr>`;
+      return `<div class="tw"><table class="ro"><thead><tr><th>Indicador</th>${cs.map(c => `<th class="n">${c.nome}</th>`).join('')}</tr></thead><tbody>
+        ${row('Volume de vendas', c => c.k === 1 ? 'previsto' : (c.k > 1 ? '+' : '−') + fN.format(cp) + '%')}
+        ${row('Receita no ano 1', c => brl0(c.c.anos[0]?.receita))}
+        ${row('Lucro líquido no ano 1', c => `<span class="${sg(c.c.anos[0]?.ll)}">${brl0(c.c.anos[0]?.ll)}</span>`)}
+        ${row('VPL', c => `<span class="${sg(c.c.vpl)}">${brl0(c.c.vpl)}</span>`)}
+        ${row('TIR', c => Number.isFinite(c.c.tirA) ? pct(c.c.tirA) + ' a.a.' : '—')}
+        ${row('Payback', c => Number.isFinite(c.c.pb) ? fN1.format(c.c.pb) + ' meses' : 'não retorna')}
+        ${row('Menor saldo de caixa', c => `<span class="${sg(c.c.caixaMin)}">${brl0(c.c.caixaMin)}</span>`)}
+        ${row('Resultado', c => pill(c.c.verdict, VERD[c.c.verdict]))}
+      </tbody></table></div>`;
+    },
     checks: () => C.checks.map(c => `<li><span>${c.nome}</span>${pill(c.ok, c.val)}<small>${c.info}</small></li>`).join(''),
     pe: () => `<div class="breakdown">
         <div class="hl"><span>PE contábil</span><b>${brl0(C.peR)}/mês</b></div>
@@ -1133,7 +1149,7 @@ function render() {
   syncBrand();
   document.getElementById('sideFoot').innerHTML = (S._exemplo ? '<span class="example-note">Dados de exemplo — edite à vontade</span>' : '') + actionsHtml();
   Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
-  main.innerHTML = `<div class="view">${V[tab].html()}</div><div class="mobilebar">${actionsHtml()}</div>`;
+  main.innerHTML = `<div class="topbar"><span class="hint">Relatório completo do plano</span><button class="btn sm primary" data-act="pdf">Gerar PDF</button><button class="btn sm primary" data-act="ppt">Gerar PowerPoint</button></div><div class="view">${V[tab].html()}</div><div class="mobilebar">${actionsHtml()}</div>`;
   refresh(false);
 }
 function refresh(recompute = true) {
@@ -1386,8 +1402,33 @@ function chartsReport() {
   };
 }
 
+/* ---------- cenários e recomendações (usados no app e nos relatórios) ---------- */
+function cenarios() {
+  const f = (n(S.premissas.cenarioPct) || 20) / 100;
+  return [['Pessimista', 1 - f], ['Realista', 1], ['Otimista', 1 + f]].map(([nome, k]) => {
+    if (k === 1) return { nome, k, c: C };
+    const s2 = JSON.parse(JSON.stringify(S));
+    // preços ficam travados nos atuais; só o volume muda
+    s2.produtos.forEach((p, i) => { p.vendasMes1 = n(p.vendasMes1) * k; p.precoManual = Number.isFinite(C.prods[i]?.preco) ? C.prods[i].preco : 0; });
+    return { nome, k, c: compute(s2) };
+  });
+}
+function recomendacao(ch) {
+  const R = {
+    vpl: 'O investimento não cria valor acima da TMA. Revise preços, volume previsto ou custos fixos antes de seguir.',
+    tir: 'A rentabilidade fica abaixo da TMA. Aumente a margem de contribuição ou reduza o investimento inicial.',
+    payback: ch.ok === 'bad' ? 'O investimento não retorna dentro do horizonte analisado. Reestruture custos ou o modelo de receita.' : 'O retorno passa de 36 meses. Busque reduzir o investimento inicial ou acelerar as vendas nos primeiros meses.',
+    caixa: `O caixa fica negativo. Aumente o capital de giro em pelo menos ${brl0(-C.caixaMin)} ou negocie prazos maiores com fornecedores.`,
+    margem: 'A receita prevista está próxima do ponto de equilíbrio. Intensifique as ações comerciais, revise preços ou reduza custos fixos.',
+    capacidade: `A demanda supera a capacidade a partir do mês ${C.mesCapEstouro || '—'}. Planeje a ampliação (equipamentos, turnos ou equipe) antes disso.`,
+    ltv: 'O cliente custa caro para ser conquistado frente ao que gera. Priorize canais orgânicos, indicação e ações de recompra.',
+    preco: 'Com o volume previsto, o markup não absorve custos fixos e margem. Aumente o volume, reduza custos fixos ou aceite margem menor.'
+  };
+  return R[ch.id] || '';
+}
+
 /* ============================================================
-   PDF
+   PDF: relatório completo do plano de negócio
    ============================================================ */
 // fontes padrão do PDF só cobrem Latin-1
 const T = s => String(s ?? '').replace(/−/g, '-').replace(/[–—]/g, '-').replace(/[“”]/g, '"').replace(/[‘’]/g, "'")
@@ -1397,12 +1438,14 @@ async function gerarPDF(btn) {
   busy(btn, 'Gerando PDF…');
   try {
     await loadScript(LIBS.jspdf); await loadScript(LIBS.autotable);
-    const D = reportData(), G = chartsReport();
+    const D = reportData(), G = chartsReport(), CEN = cenarios();
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const W = 210, H = 297, M = 18, CW = W - 2 * M, TOP = 30, BOT = H - 20;
+    let W = 210, H = 297, CW = W - 36, BOT = H - 20;
+    const M = 18, TOP = 30;
     const INK = [21, 32, 27], INK2 = [72, 86, 78], MUT = [118, 131, 123], LINE = [214, 221, 215];
     const BR = D.cor, TINT = mix(BR, 0.9), TINT2 = mix(BR, 0.95);
+    const RED = [184, 53, 53], GRN = [29, 127, 70], AMB = [154, 98, 0];
     let y = TOP;
     const logo = S.empresa.logo, lw = n(S.empresa.logoW) || 3, lh = n(S.empresa.logoH) || 1;
     const font = (sz, st = 'normal', col = INK) => { doc.setFont('helvetica', st); doc.setFontSize(sz); doc.setTextColor(...col); };
@@ -1411,20 +1454,35 @@ async function gerarPDF(btn) {
       if (y + h + (pend ? 8 : 0) > BOT) { doc.addPage(); y = TOP; }
       if (pend) { font(12, 'bold'); doc.text(T(pend), M, y); y += 6; pend = null; }
     };
+    const toc = [];
     let secN = 0;
-    const section = title => {
+    const section = (title, intro) => {
       doc.addPage(); y = TOP + 2; secN++; pend = null;
+      toc.push({ n: String(secN), title, page: doc.getNumberOfPages() });
       font(9, 'bold', BR); doc.text(T(String(secN).padStart(2, '0') + '  ·  PLANO DE NEGÓCIO'), M, y);
       y += 9; font(21, 'bold'); doc.text(T(title), M, y);
-      y += 4; doc.setDrawColor(...BR); doc.setLineWidth(0.8); doc.line(M, y, M + 22, y); y += 9;
+      y += 4; doc.setDrawColor(...BR); doc.setLineWidth(0.8); doc.line(M, y, M + 22, y); y += 8;
+      if (intro) { font(10, 'italic', INK2); const l = doc.splitTextToSize(T(intro), CW); doc.text(l, M, y, { lineHeightFactor: 1.4 }); y += l.length * 4.95 + 5; }
     };
     const sub = t => { pend = t; };
     const para = (label, text, w = CW, x = M) => {
       if (!String(text || '').trim()) return;
       font(10); const lines = doc.splitTextToSize(T(text), w);
-      ensure(7 + lines.length * 4.9);
+      ensure(7 + Math.min(lines.length, 12) * 4.9);
       if (label) { font(7.5, 'bold', MUT); doc.text(T(label.toUpperCase()), x, y); y += 4.6; }
-      font(10, 'normal', INK); doc.text(lines, x, y, { lineHeightFactor: 1.4 }); y += lines.length * 4.95 + 4;
+      font(10, 'normal', INK);
+      lines.forEach(l => { if (y + 5 > BOT) { doc.addPage(); y = TOP; font(10, 'normal', INK); } doc.text(l, x, y); y += 4.95; });
+      y += 4;
+    };
+    const bullets = (items, col = INK) => {
+      items.forEach(([head, txt]) => {
+        font(10); const lines = doc.splitTextToSize(T(txt), CW - 6);
+        ensure(6 + lines.length * 4.9);
+        doc.setFillColor(...col); doc.circle(M + 1.3, y - 1.2, 0.9, 'F');
+        font(10, 'bold', INK); doc.text(T(head), M + 5, y); y += 4.9;
+        font(10, 'normal', INK2); doc.text(lines, M + 5, y, { lineHeightFactor: 1.4 }); y += lines.length * 4.95 + 3;
+      });
+      y += 2;
     };
     const kpis = (items, cols = 3) => {
       const gap = 4, bw = (CW - gap * (cols - 1)) / cols, bh = 21;
@@ -1458,6 +1516,7 @@ async function gerarPDF(btn) {
       y += 4;
     };
     const table = (head, body, o = {}) => {
+      if (!body.length) return;
       const est = (body.length + 1) * ((o.fs || 8.5) * 0.55 + 2 * (o.pad || 2.2)) + 4;
       ensure(est < 150 ? est : 18);
       const colStyles = {};
@@ -1473,10 +1532,10 @@ async function gerarPDF(btn) {
         didParseCell: d => {
           if (d.section !== 'body') return;
           if (o.bold && o.bold.includes(d.row.index)) { d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = TINT; }
-          if (typeof d.cell.raw === 'string' && /^-R\$|^-\d/.test(d.cell.raw)) d.cell.styles.textColor = [184, 53, 53];
-          if (o.status && d.column.index === o.status) {
+          if (typeof d.cell.raw === 'string' && /^-R\$|^-\d/.test(d.cell.raw)) d.cell.styles.textColor = RED;
+          if (o.status != null && d.column.index === o.status) {
             const v = d.cell.raw; d.cell.styles.fontStyle = 'bold';
-            d.cell.styles.textColor = v === 'OK' ? [29, 127, 70] : v === 'Atenção' ? [154, 98, 0] : [184, 53, 53];
+            d.cell.styles.textColor = /^(OK|Viável)$/.test(v) ? GRN : /^(Atenção|Viável com atenção)$/.test(v) ? AMB : RED;
           }
         }
       });
@@ -1487,69 +1546,99 @@ async function gerarPDF(btn) {
       if (title) { font(9, 'bold', INK2); doc.text(T(title), M, y); y += 3; }
       doc.addImage(url, 'PNG', M, y, CW, h, undefined, 'FAST'); y += h + 6;
     };
+    const vcol = v => v === 'good' ? GRN : v === 'warn' ? AMB : RED;
+    const vbox = () => {
+      const vc = vcol(C.verdict);
+      font(10); const rl = doc.splitTextToSize(T(D.resumo), CW - 62);
+      const bh = Math.max(20, rl.length * 5 + 10);
+      ensure(bh + 8);
+      doc.setFillColor(...vc.map(c => Math.round(c + (255 - c) * 0.88))); doc.roundedRect(M, y, CW, bh, 2, 2, 'F');
+      font(15, 'bold', vc); doc.text(T(D.verdict), M + 6, y + bh / 2 + 2, { maxWidth: 52 });
+      font(10, 'normal', INK); doc.text(rl, M + 58, y + 7.5, { lineHeightFactor: 1.4 });
+      y += bh + 8;
+    };
+    const tirTxt = c => Number.isFinite(c.tirA) ? pct(c.tirA) + ' a.a.' : '—';
+    const pbTxt = v => Number.isFinite(v) ? fN1.format(v) + ' meses' : 'não retorna';
+    const E = D.E, P = S.premissas, Mv = S.mvp, Mk = S.marketing, Cm = S.comercial, O = S.operacional, I = S.investimento;
+    const a1 = C.anos[0] || {};
 
-    /* capa */
+    /* ---------- capa ---------- */
     doc.setFillColor(...BR); doc.rect(0, 0, W, 8, 'F'); doc.rect(0, H - 34, W, 34, 'F');
     if (logo) { const d = fit(lw, lh, 70, 40); doc.addImage(logo, 'PNG', M, 34, d.w, d.h, undefined, 'FAST'); }
     font(11, 'bold', BR); doc.text('PLANO DE NEGÓCIO', M, 112);
-    font(32, 'bold'); const tl = doc.splitTextToSize(T(D.E.nome || 'Meu negócio'), CW); doc.text(tl, M, 126, { lineHeightFactor: 1.15 });
+    font(32, 'bold'); const tl = doc.splitTextToSize(T(E.nome || 'Meu negócio'), CW); doc.text(tl, M, 126, { lineHeightFactor: 1.15 });
     let cy = 126 + tl.length * 13;
-    font(13, 'normal', INK2); doc.text(T([D.E.segmento, D.E.cidade].filter(Boolean).join('  ·  ')), M, cy); cy += 14;
-    if (D.E.descricao) { font(10.5, 'normal', INK2); const dl = doc.splitTextToSize(T(D.E.descricao), CW - 30); doc.text(dl, M, cy, { lineHeightFactor: 1.45 }); cy += dl.length * 5.5 + 10; }
-    const vc = C.verdict === 'good' ? [29, 127, 70] : C.verdict === 'warn' ? [154, 98, 0] : [184, 53, 53];
-    doc.setFillColor(...vc.map(c => Math.round(c + (255 - c) * 0.88))); doc.roundedRect(M, Math.max(cy, 196), CW, 26, 2, 2, 'F');
-    font(8, 'bold', vc); doc.text('RESULTADO DA ANÁLISE DE VIABILIDADE', M + 6, Math.max(cy, 196) + 8);
-    font(15, 'bold', vc); doc.text(T(D.verdict), M + 6, Math.max(cy, 196) + 17);
-    font(9, 'normal', INK); doc.text(T(`VPL ${brl0(C.vpl)}   ·   TIR ${Number.isFinite(C.tirA) ? pct(C.tirA) + ' a.a.' : '—'}   ·   Payback ${Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna'}`), M + 70, Math.max(cy, 196) + 17);
+    font(13, 'normal', INK2); doc.text(T([E.segmento, E.cidade].filter(Boolean).join('  ·  ')), M, cy); cy += 14;
+    if (E.descricao) { font(10.5, 'normal', INK2); const dl = doc.splitTextToSize(T(E.descricao), CW - 30).slice(0, 6); doc.text(dl, M, cy, { lineHeightFactor: 1.45 }); cy += dl.length * 5.5 + 10; }
+    {
+      const vc = vcol(C.verdict), by = Math.max(cy, 200);
+      doc.setFillColor(...vc.map(c => Math.round(c + (255 - c) * 0.88))); doc.roundedRect(M, by, CW, 26, 2, 2, 'F');
+      font(8, 'bold', vc); doc.text('RESULTADO DA ANÁLISE DE VIABILIDADE', M + 6, by + 8);
+      font(15, 'bold', vc); doc.text(T(D.verdict), M + 6, by + 17);
+      font(9, 'normal', INK); doc.text(T(`VPL ${brl0(C.vpl)}   ·   TIR ${tirTxt(C)}   ·   Payback ${pbTxt(C.pb)}`), M + 70, by + 17);
+    }
     font(10, 'normal', [255, 255, 255]);
-    doc.text(T([D.E.responsavel, D.E.formaJuridica].filter(Boolean).join('  ·  ')), M, H - 19);
+    doc.text(T([E.responsavel, E.formaJuridica].filter(Boolean).join('  ·  ')), M, H - 19);
     doc.text(T(dataHoje()), M, H - 13);
 
+    /* ---------- índice (preenchido no fim) ---------- */
+    doc.addPage(); const tocPage = doc.getNumberOfPages();
+
     /* 1. sumário executivo */
-    section('Sumário executivo');
-    para('Descrição do negócio', D.E.descricao);
-    para('Oportunidade de mercado', D.E.oportunidade);
+    section('Sumário executivo', 'Visão geral do empreendimento, dos principais números e da conclusão sobre a viabilidade.');
+    para('Descrição do negócio', E.descricao);
+    para('Oportunidade de mercado', E.oportunidade);
+    sub('Dados do empreendimento');
+    table(['Campo', 'Informação'], [['Nome', E.nome], ['Segmento', E.segmento], ['Cidade', E.cidade], ['Forma jurídica / regime tributário', E.formaJuridica], ['Responsável', E.responsavel],
+      ['Início das operações', E.inicio ? rotuloMes(+E.inicio.slice(0, 4), +E.inicio.slice(5, 7) - 1, 1) : ''], ['Produtos', S.produtos.map(p => p.nome).join(', ')]].filter(r => r[1]), { cols: { 0: { cellWidth: 60, fontStyle: 'bold' } } });
+    sub('Missão, visão e valores'); boxes([['Missão', E.missao], ['Visão', E.visao], ['Valores', E.valores]], 3);
     sub('Principais indicadores'); kpis(D.kpis);
-    para('Conclusão', `${D.verdict}. ${D.resumo}`);
-    sub('Identificação');
-    table(['Campo', 'Informação'], [['Forma jurídica / regime', D.E.formaJuridica], ['Responsável', D.E.responsavel], ['Início das operações', D.E.inicio ? rotuloMes(+D.E.inicio.slice(0, 4), +D.E.inicio.slice(5, 7) - 1, 1) : '']].filter(r => r[1]), { cols: { 0: { cellWidth: 55, fontStyle: 'bold' } } });
-    sub('Identidade'); boxes([['Missão', D.E.missao], ['Visão', D.E.visao], ['Valores', D.E.valores]], 3);
+    sub('Conclusão'); vbox();
 
-    /* 2. SWOT */
-    section('Análise SWOT');
-    boxes([['Forças', D.E.forcas], ['Fraquezas', D.E.fraquezas], ['Oportunidades', D.E.oportunidades], ['Ameaças', D.E.ameacas]], 2);
+    /* 2. análise de mercado */
+    section('Análise de mercado', 'Quem são os clientes, com quem o negócio disputa a preferência deles e de quem compra seus insumos.');
+    para('Público-alvo', Mk.publico);
+    para('Persona (cliente típico)', Mk.persona);
+    sub('Concorrentes');
+    table(['Concorrente', 'Preço praticado', 'Pontos fortes', 'Pontos fracos'], Mk.concorrentes.map(c => [c.nome, c.preco, c.fortes, c.fracos]), { cols: { 0: { fontStyle: 'bold', cellWidth: 34 }, 1: { cellWidth: 28 } } });
+    sub('Fornecedores');
+    table(['Fornecedor', 'O que fornece', 'Prazo de entrega', 'Condição de pagamento'], O.fornecedores.map(f => [f.nome, f.item, f.prazo, f.condicao]));
 
-    /* 3. MVP */
-    const Mv = S.mvp;
-    section('MVP: produto mínimo viável');
+    /* 3. SWOT */
+    section('Análise estratégica (SWOT)', 'Forças e fraquezas são fatores internos que o negócio controla; oportunidades e ameaças vêm do ambiente externo.');
+    boxes([['Forças', E.forcas], ['Fraquezas', E.fraquezas], ['Oportunidades', E.oportunidades], ['Ameaças', E.ameacas]], 2);
+
+    /* 4. MVP */
+    section('MVP e validação', 'O produto mínimo viável é o menor teste capaz de comprovar que os clientes compram, antes de investir na estrutura completa.');
     para('Hipótese a validar', Mv.hipotese); para('Problema do cliente', Mv.problema); para('Critério de sucesso', Mv.metrica);
-    kpis([['Custo total do MVP', brl0(C.mvp.custo), 'itens incluídos + divulgação'], ['Esforço', fN.format(C.mvp.horas) + ' h', Number.isFinite(C.mvp.semanas) ? `cerca de ${fN1.format(C.mvp.semanas)} semanas` : ''], ['Pedidos esperados', num(C.mvp.pedidos), `meta: ${num(n(Mv.metaPedidos))}`],
-      ['Receita do teste', brl0(C.mvp.receita), ''], ['CAC no teste', brl(C.mvp.cac), 'verba ÷ pedidos'], ['No investimento inicial', S.investimento.incluirMvp ? 'Incluído' : 'Não incluído', '']]);
-    sub('Escopo e priorização');
+    sub('Escopo e priorização (MoSCoW)');
     table(['No MVP', 'Item', 'Prioridade', 'Horas', 'Custo direto', 'Total'], C.mvp.feats.map(f => [f.incluir ? 'Sim' : 'Não', f.nome, f.prio, fN1.format(n(f.horas)), brl(n(f.custo)), brl(f.total)]), { num: [3, 4, 5], cols: { 0: { cellWidth: 16 } } });
+    sub('Parâmetros do teste de mercado');
+    table(['Parâmetro', 'Valor'], [['Custo da hora de trabalho', brl(n(Mv.custoHora))], ['Horas disponíveis por semana', fN1.format(n(Mv.horasSemana)) + ' h'], ['Pessoas alcançadas', num(n(Mv.alcance))], ['Conversão esperada', pct(n(Mv.conversaoPct) / 100)], ['Ticket médio no teste', brl(n(Mv.ticketTeste))], ['Verba de divulgação', brl(n(Mv.marketingTeste))], ['Meta de pedidos', num(n(Mv.metaPedidos))]], { num: [1] });
+    sub('Resultado esperado');
+    kpis([['Custo total do MVP', brl0(C.mvp.custo), 'itens incluídos + divulgação'], ['Esforço', fN.format(C.mvp.horas) + ' h', Number.isFinite(C.mvp.semanas) ? `cerca de ${fN1.format(C.mvp.semanas)} semanas` : ''], ['Pedidos esperados', num(C.mvp.pedidos), C.mvp.pedidos >= n(Mv.metaPedidos) ? 'meta atingível' : 'abaixo da meta'],
+      ['Receita do teste', brl0(C.mvp.receita), `resultado: ${brl0(C.mvp.receita - C.mvp.custo)}`], ['CAC no teste', brl(C.mvp.cac), 'verba ÷ pedidos'], ['No investimento inicial', I.incluirMvp ? 'Incluído' : 'Não incluído', '']]);
 
-    /* 4. produtos */
-    section('Produtos e formação de preço');
-    table(['Premissa', 'Valor'], [['Impostos sobre a venda', pct(n(S.premissas.impostosPct) / 100, 2)], ['Comissão de vendas', pct(n(S.premissas.comissaoPct) / 100, 2)], ['Taxa média dos canais', pct(C.taxaCanais, 2)], ['Total de custos variáveis sobre a venda', pct(C.varPct, 2)], ['Rateio de custos fixos no preço', pct(C.rateioPct, 2)], ['Custo da hora de mão de obra direta', brl(n(S.operacional.custoHoraMO))]], { num: [1], bold: [3] });
-    sub('Resumo de preços');
-    table(['Produto', 'Custo direto', 'Markup', 'Preço sugerido', 'Preço adotado', 'Margem contrib.', 'Lucro %'], C.prods.map(x => [`${x.p.nome} (${x.p.unidade})`, brl(x.cd), Number.isFinite(x.markup) ? x.markup.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'x' : '—', brl(x.sugerido), brl(x.preco), `${brl(x.mcUnit)} (${pct(x.mcPct)})`, pct(x.margemReal)]), { num: [1, 2, 3, 4, 5, 6], fs: 8 });
-    C.prods.forEach(x => {
-      sub(`Ficha técnica: ${x.p.nome}`);
-      table(['Insumo', 'Qtd./unidade', 'Unid.', 'Custo unit.', 'Custo'], [
-        ...x.p.insumos.map(i => [i.nome, String(n(i.qtd)).replace('.', ','), i.unid, brl(n(i.custo)), brl(n(i.qtd) * n(i.custo))]),
-        ['Mão de obra direta', fN1.format(n(x.p.minutosMO)) + ' min', '', '', brl(x.mo)], ['Embalagem + outros', '', '', '', brl(n(x.p.embalagem) + n(x.p.outros))],
-        ['Custo direto unitário', '', '', '', brl(x.cd)], ['Preço de venda adotado', '', '', '', brl(x.preco)]
-      ], { num: [1, 3, 4], bold: [x.p.insumos.length + 2, x.p.insumos.length + 3], fs: 8 });
-    });
+    /* 5. marketing */
+    section('Plano de marketing', 'Como o negócio se posiciona, o que oferece, a que preço, onde vende e como se comunica com o cliente.');
+    para('Posicionamento', Mk.posicionamento);
+    sub('Composto de marketing (4 Ps)');
+    boxes([['Produto', Mk.produto], ['Preço', Mk.preco], ['Praça (distribuição)', Mk.praca], ['Promoção (comunicação)', Mk.promocao]], 2);
+    sub('Preços de venda');
+    table(['Produto', 'Unidade', 'Preço de venda', 'Margem de contribuição'], C.prods.map(x => [x.p.nome, x.p.unidade, brl(x.preco), pct(x.mcPct)]), { num: [2, 3] });
+    sub('Orçamento mensal de marketing');
+    table(['Ação', 'Canal', 'Valor por mês'], [...Mk.orcamento.map(o => [o.acao, o.canal, brl(n(o.valor))]), ['Total', a1.receita ? pct(C.mkt * 12 / a1.receita) + ' da receita do ano 1' : '', brl(C.mkt)]], { num: [2], bold: [Mk.orcamento.length] });
+    sub('Aquisição e retenção de clientes');
+    table(['Premissa', 'Valor'], [['Novos clientes por mês', num(n(Mk.novosClientes))], ['Ticket médio', brl(n(Mk.ticket))], ['Compras por cliente ao ano', fN1.format(n(Mk.freqAno))], ['Anos de relacionamento', fN1.format(n(Mk.anosRetencao))]], { num: [1] });
+    kpis([['CAC', brl(C.cac), 'verba ÷ novos clientes'], ['LTV', brl(C.ltv), 'ticket × frequência × anos × MC%'], ['LTV / CAC', Number.isFinite(C.ltvCac) ? fN1.format(C.ltvCac) + 'x' : '—', 'meta: 3x ou mais']]);
 
-    /* 5. comercial */
-    const Cm = S.comercial;
-    section('Plano comercial');
+    /* 6. comercial */
+    section('Plano comercial', 'Canais de venda, volumes previstos, sazonalidade e regras comerciais que formam a receita projetada.');
     sub('Previsão de vendas');
     table(['Produto', 'Vendas mês 1', 'Cresc. a.m.', 'Preço', 'Unid. ano 1', 'Receita ano 1'], C.prods.map((x, i) => [x.p.nome, num(n(x.p.vendasMes1)), pct(n(x.p.crescimentoPct) / 100), brl(x.preco), num(sum(C.rows.filter(r => r.ano === 1), r => r.porProd[i].q)), brl0(sum(C.rows.filter(r => r.ano === 1), r => r.porProd[i].r))]), { num: [1, 2, 3, 4, 5] });
-    para('', `Crescimento aplicado até o mês ${num(n(S.premissas.mesesCrescimento))}; depois o volume estabiliza e só varia com a sazonalidade e o reajuste anual de ${pct(n(S.premissas.inflacaoAnual) / 100)}.`);
+    para('', `O crescimento mensal é aplicado até o mês ${num(n(P.mesesCrescimento))}. Depois disso o volume estabiliza e varia apenas com a sazonalidade; preços e custos são reajustados em ${pct(n(P.inflacaoAnual) / 100)} a cada 12 meses.`);
     sub('Canais de venda');
-    table(['Canal', 'Participação', 'Taxa'], [...Cm.canais.map(c => [c.canal, pct(n(c.part) / 100), pct(n(c.taxa) / 100, 2)]), ['Média ponderada', pct(sum(Cm.canais, c => c.part) / 100), pct(C.taxaCanais, 2)]], { num: [1, 2], bold: [Cm.canais.length] });
+    table(['Canal', 'Participação na receita', 'Taxa cobrada'], [...Cm.canais.map(c => [c.canal, pct(n(c.part) / 100), pct(n(c.taxa) / 100, 2)]), ['Média ponderada', pct(sum(Cm.canais, c => c.part) / 100), pct(C.taxaCanais, 2)]], { num: [1, 2], bold: [Cm.canais.length] });
     sub('Sazonalidade (100% = mês normal)');
     table(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'], [Cm.sazonalidade.map(v => fN.format(n(v)) + '%')], { fs: 8, cols: Object.fromEntries([...Array(12).keys()].map(i => [i, { halign: 'center' }])) });
     sub('Metas mensais do ano 1');
@@ -1557,87 +1646,162 @@ async function gerarPDF(btn) {
     table(['Produto', ...r12.map(r => r.label)], [...C.prods.map((x, i) => [x.p.nome, ...r12.map(r => num(r.porProd[i].q))]), ['Receita', ...r12.map(r => kbrl(r.receita).replace('R$ ', ''))]], { fs: 6.5, pad: 1.4, num: [...Array(12).keys()].map(i => i + 1), bold: [C.prods.length], cols: { 0: { cellWidth: 26 } } });
     para('Política comercial', Cm.politica); para('Prazos de recebimento', Cm.prazoRecebimento); para('Metas qualitativas', Cm.metas);
 
-    /* 6. marketing */
-    const Mk = S.marketing;
-    section('Plano de marketing');
-    para('Público-alvo', Mk.publico); para('Persona', Mk.persona); para('Posicionamento', Mk.posicionamento);
-    sub('Composto de marketing (4 Ps)');
-    boxes([['Produto', Mk.produto], ['Preço', Mk.preco], ['Praça', Mk.praca], ['Promoção', Mk.promocao]], 2);
-    sub('Concorrentes');
-    table(['Concorrente', 'Preço', 'Pontos fortes', 'Pontos fracos'], Mk.concorrentes.map(c => [c.nome, c.preco, c.fortes, c.fracos]), { cols: { 0: { fontStyle: 'bold', cellWidth: 34 }, 1: { cellWidth: 28 } } });
-    sub('Orçamento mensal');
-    table(['Ação', 'Canal', 'Valor por mês'], [...Mk.orcamento.map(o => [o.acao, o.canal, brl(n(o.valor))]), ['Total', '', brl(C.mkt)]], { num: [2], bold: [Mk.orcamento.length] });
-    sub('Aquisição e retenção');
-    kpis([['CAC', brl(C.cac), 'verba ÷ novos clientes'], ['LTV', brl(C.ltv), 'ticket × frequência × anos × MC%'], ['LTV / CAC', Number.isFinite(C.ltvCac) ? fN1.format(C.ltvCac) + 'x' : '—', 'meta: 3x ou mais']]);
-
     /* 7. operacional */
-    const O = S.operacional;
-    section('Plano operacional');
-    kpis([['Custo fixo mensal', brl0(C.fixoTotal), 'folha + fixos + marketing + depreciação'], ['Folha com encargos', brl0(C.folha), `${num(sum(O.equipe, e => e.qtd))} pessoas`], ['Uso da capacidade', n(O.capacidadeMensal) > 0 ? pct(C.maxUnid / n(O.capacidadeMensal), 0) : '—', `pico de ${num(C.maxUnid)} un/mês`]]);
+    section('Plano operacional', 'Estrutura física, capacidade produtiva, processos, equipe e custos fixos necessários para operar.');
     para('Localização e instalações', O.localizacao);
+    sub('Capacidade produtiva');
+    table(['Indicador', 'Valor'], [['Capacidade instalada', num(n(O.capacidadeMensal)) + ' unidades/mês'], ['Pico de demanda previsto', num(C.maxUnid) + ' unidades/mês'], ['Uso da capacidade no pico', n(O.capacidadeMensal) > 0 ? pct(C.maxUnid / n(O.capacidadeMensal), 0) : '—'], ['Situação', C.capOk ? 'Atende a demanda' : `Demanda supera a capacidade a partir do mês ${C.mesCapEstouro}`], ['Custo da hora de mão de obra direta', brl(n(O.custoHoraMO))]], { num: [1] });
     para('Processo operacional', O.processos);
     sub('Equipe');
-    table(['Cargo', 'Qtd.', 'Salário', 'Custo com encargos'], [...O.equipe.map(e => [e.cargo, num(n(e.qtd)), brl(n(e.salario)), brl(n(e.qtd) * n(e.salario) * (1 + n(O.encargosPct) / 100))]), ['Total (encargos de ' + pct(n(O.encargosPct) / 100, 0) + ')', '', '', brl(C.folha)]], { num: [1, 2, 3], bold: [O.equipe.length] });
+    table(['Cargo', 'Qtd.', 'Salário', 'Custo com encargos'], [...O.equipe.map(e => [e.cargo, num(n(e.qtd)), brl(n(e.salario)), brl(n(e.qtd) * n(e.salario) * (1 + n(O.encargosPct) / 100))]), ['Total (encargos e benefícios de ' + pct(n(O.encargosPct) / 100, 0) + ')', num(sum(O.equipe, e => e.qtd)), '', brl(C.folha)]], { num: [1, 2, 3], bold: [O.equipe.length] });
     sub('Custos fixos mensais');
     table(['Item', 'Valor por mês'], [...O.custosFixos.map(c => [c.item, brl(n(c.valor))]), ['Total', brl(C.fixosItens)]], { num: [1], bold: [O.custosFixos.length] });
-    sub('Fornecedores');
-    table(['Fornecedor', 'O que fornece', 'Prazo', 'Condição'], O.fornecedores.map(f => [f.nome, f.item, f.prazo, f.condicao]));
 
-    /* 8. investimento */
-    const I = S.investimento;
-    section('Investimento inicial');
+    /* 8. produtos */
+    section('Produtos e formação de preço', 'Custo direto de cada produto e preço de venda pelo método do markup: preço = custo direto ÷ (1 − custos variáveis − rateio dos fixos − margem desejada).');
+    table(['Premissa', 'Valor'], [['Impostos sobre a venda', pct(n(P.impostosPct) / 100, 2)], ['Comissão de vendas', pct(n(P.comissaoPct) / 100, 2)], ['Taxa média dos canais', pct(C.taxaCanais, 2)], ['Total de custos variáveis sobre a venda', pct(C.varPct, 2)], ['Rateio de custos fixos no preço', pct(C.rateioPct, 2)], ['Custo da hora de mão de obra direta', brl(n(O.custoHoraMO))]], { num: [1], bold: [3] });
+    sub('Resumo de preços');
+    table(['Produto', 'Custo direto', 'Markup', 'Preço sugerido', 'Preço adotado', 'Margem contrib.', 'Lucro %'], C.prods.map(x => [`${x.p.nome} (${x.p.unidade})`, brl(x.cd), Number.isFinite(x.markup) ? x.markup.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'x' : '—', brl(x.sugerido), brl(x.preco), `${brl(x.mcUnit)} (${pct(x.mcPct)})`, pct(x.margemReal)]), { num: [1, 2, 3, 4, 5, 6], fs: 8 });
+    C.prods.forEach(x => {
+      sub(`Ficha técnica: ${x.p.nome}`);
+      table(['Insumo', 'Qtd./unidade', 'Unid.', 'Custo unit.', 'Custo'], [
+        ...x.p.insumos.map(i => [i.nome, String(n(i.qtd)).replace('.', ','), i.unid, brl(n(i.custo)), brl(n(i.qtd) * n(i.custo))]),
+        ['Mão de obra direta', fN1.format(n(x.p.minutosMO)) + ' min', '', '', brl(x.mo)], ['Embalagem + outros', '', '', '', brl(n(x.p.embalagem) + n(x.p.outros))],
+        ['Custo direto unitário', '', '', '', brl(x.cd)], [`Preço de venda adotado (margem desejada ${pct(n(x.p.margemPct) / 100, 0)})`, '', '', '', brl(x.preco)]
+      ], { num: [1, 3, 4], bold: [x.p.insumos.length + 2, x.p.insumos.length + 3], fs: 8 });
+    });
+
+    /* 9. investimento */
+    section('Investimento inicial', 'Recursos necessários antes de iniciar as operações e como serão financiados.');
     kpis([['Investimento total', brl0(C.inv.total), ''], ['Capital próprio', brl0(C.inv.proprio), pct(C.inv.proprio / C.inv.total, 0) + ' do total'], ['Financiado', brl0(C.inv.fin), C.inv.fin > 0 ? `${num(n(I.fin.prazo))}x · ${pct(n(I.fin.taxa) / 100, 2)} a.m.` : '']]);
-    sub('Composição');
+    sub('Composição do investimento');
     table(['Grupo', 'Valor', '% do total'], [['Investimentos fixos', brl0(C.inv.fixos), pct(C.inv.fixos / C.inv.total)], ['Despesas pré-operacionais', brl0(C.inv.preop), pct(C.inv.preop / C.inv.total)], [`Capital de giro (${num(n(I.mesesGiro))} meses de custos fixos)`, brl0(C.inv.giro), pct(C.inv.giro / C.inv.total)], ['MVP', brl0(C.inv.mvp), pct(C.inv.mvp / C.inv.total)], ['Total', brl0(C.inv.total), '100%']], { num: [1, 2], bold: [4] });
     sub('Investimentos fixos');
     table(['Item', 'Qtd.', 'Valor unit.', 'Vida útil', 'Total'], [...I.fixos.map(f => [f.item, num(n(f.qtd)), brl(n(f.valor)), n(f.vida) + ' anos', brl(n(f.qtd) * n(f.valor))]), ['Total', '', '', `deprec. ${brl(C.deprec)}/mês`, brl(C.inv.fixos)]], { num: [1, 2, 3, 4], bold: [I.fixos.length] });
     sub('Despesas pré-operacionais');
     table(['Item', 'Valor'], [...I.preop.map(p => [p.item, brl(n(p.valor))]), ['Total', brl(C.inv.preop)]], { num: [1], bold: [I.preop.length] });
-    if (C.inv.fin > 0) {
-      sub('Financiamento');
-      table(['Condição', 'Valor'], [['Valor financiado', brl0(C.inv.fin)], ['Juros', pct(n(I.fin.taxa) / 100, 2) + ' ao mês'], ['Prazo total', num(n(I.fin.prazo)) + ' meses'], ['Carência (só juros)', num(C.inv.fCar) + ' meses'], ['Parcela após a carência', brl(C.inv.pmt)], ['Juros totais pagos', brl0(sum(C.rows, r => r.juros))]], { num: [1] });
-    }
+    sub('Fontes de recursos');
+    table(['Fonte / condição', 'Valor'], [['Capital próprio', brl0(C.inv.proprio)], ['Valor financiado', brl0(C.inv.fin)], ...(C.inv.fin > 0 ? [['Juros', pct(n(I.fin.taxa) / 100, 2) + ' ao mês'], ['Prazo total', num(n(I.fin.prazo)) + ' meses'], ['Carência (só juros)', num(C.inv.fCar) + ' meses'], ['Parcela após a carência', brl(C.inv.pmt)], ['Juros totais pagos', brl0(sum(C.rows, r => r.juros))]] : [])], { num: [1] });
 
-    /* 9. financeiro */
-    const P = S.premissas;
-    section('Plano financeiro');
-    table(['Premissa', 'Valor'], [['TMA (taxa mínima de atratividade)', pct(n(P.tmaAnual) / 100) + ' a.a.'], ['Inflação / reajuste anual', pct(n(P.inflacaoAnual) / 100)], ['Horizonte da análise', C.H + ' meses'], ['IR/CSLL sobre o lucro', pct(n(P.irPct) / 100)]], { num: [1] });
+    /* 10. financeiro */
+    section('Plano financeiro', 'Projeção de resultados e de caixa a partir das premissas de vendas, custos e investimento.');
+    sub('Premissas financeiras');
+    table(['Premissa', 'Valor'], [['TMA (taxa mínima de atratividade)', pct(n(P.tmaAnual) / 100) + ' a.a.'], ['Inflação / reajuste anual', pct(n(P.inflacaoAnual) / 100)], ['Horizonte da análise', C.H + ' meses'], ['Impostos sobre a venda', pct(n(P.impostosPct) / 100, 2)], ['IR/CSLL sobre o lucro', pct(n(P.irPct) / 100)]], { num: [1] });
+    sub('Estrutura de custos fixos mensais');
+    table(['Grupo', 'Valor por mês', '% do total'], [['Folha de pagamento com encargos', brl(C.folha), pct(C.folha / C.fixoTotal)], ['Custos fixos operacionais', brl(C.fixosItens), pct(C.fixosItens / C.fixoTotal)], ['Marketing', brl(C.mkt), pct(C.mkt / C.fixoTotal)], ['Depreciação', brl(C.deprec), pct(C.deprec / C.fixoTotal)], ['Total', brl(C.fixoTotal), '100%']], { num: [1, 2], bold: [4] });
     sub('Demonstração de resultado (DRE) anual');
-    table(['Conta', ...C.anos.map(a => 'Ano ' + a.ano + (a.meses < 12 ? ` (${a.meses}m)` : ''))], D.dre.map(r => [r.l, ...r.vals]), { num: C.anos.map((_, i) => i + 1), bold: D.dre.map((r, i) => r.b ? i : -1).filter(i => i >= 0), fs: C.anos.length > 6 ? 6.5 : 8, cols: { 0: { cellWidth: 52 } } });
+    const yc = C.anos.map((_, i) => i + 1);
+    table(['Conta', ...C.anos.map(a => 'Ano ' + a.ano + (a.meses < 12 ? ` (${a.meses}m)` : ''))], D.dre.map(r => [r.l, ...r.vals]), { num: yc, bold: D.dre.map((r, i) => r.b ? i : -1).filter(i => i >= 0), fs: C.anos.length > 6 ? 6.5 : 8, cols: { 0: { cellWidth: 52 } } });
+    sub('Fluxo de caixa anual');
+    table(['Conta', 'Ano 0', ...C.anos.map(a => 'Ano ' + a.ano)], [
+      ['(-) Investimento inicial', brl0(-C.inv.total), ...C.anos.map(() => '')],
+      ['(+) Capital próprio e financiamento', brl0(C.inv.total), ...C.anos.map(() => '')],
+      ['Lucro líquido', '', ...C.anos.map(a => brl0(a.ll))],
+      ['(+) Depreciação', '', ...C.anos.map(a => brl0(a.deprec))],
+      ['(-) Amortização do financiamento', '', ...C.anos.map(a => brl0(-a.amort || 0))],
+      ['= Geração de caixa do ano', brl0(C.inv.giro), ...C.anos.map(a => brl0(a.ll + a.deprec - a.amort))],
+      ['Saldo de caixa no fim do ano', brl0(C.inv.giro), ...C.anos.map(a => brl0(a.caixaFim))],
+      ['Fluxo do projeto (sem financiamento)', brl0(-C.inv.total), ...C.anos.map(a => brl0(a.fc))],
+      ['Fluxo do projeto acumulado', brl0(-C.inv.total), ...C.anos.map(a => brl0(a.accFim))]
+    ], { num: [1, ...yc.map(i => i + 1)], bold: [5, 6], fs: C.anos.length > 6 ? 6.5 : 7.5, cols: { 0: { cellWidth: 50 } } });
     image(G.receita, CW * 0.45, 'Receita bruta × custos totais por mês');
     image(G.anual, CW * 0.45, 'Receita bruta e lucro líquido por ano');
+    para('', 'A projeção mês a mês completa está no Anexo A.');
 
-    /* 10. viabilidade */
-    section('Análise de viabilidade');
-    {
-      ensure(24);
-      doc.setFillColor(...vc.map(c => Math.round(c + (255 - c) * 0.88)));
-      font(10); const rl = doc.splitTextToSize(T(D.resumo), CW - 62);
-      const bh = Math.max(20, rl.length * 5 + 10);
-      doc.roundedRect(M, y, CW, bh, 2, 2, 'F');
-      font(15, 'bold', vc); doc.text(T(D.verdict), M + 6, y + bh / 2 + 2);
-      font(10, 'normal', INK); doc.text(rl, M + 58, y + 7.5, { lineHeightFactor: 1.4 });
-      y += bh + 8;
-    }
-    kpis([['VPL', brl0(C.vpl), 'valor criado acima da TMA'], ['TIR', Number.isFinite(C.tirA) ? pct(C.tirA) + ' a.a.' : '—', Number.isFinite(C.tirM) ? pct(C.tirM, 2) + ' a.m.' : ''], ['Payback simples', Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna', Number.isFinite(C.pb) ? fN1.format(C.pb / 12) + ' anos' : ''],
-      ['Payback descontado', Number.isFinite(C.pbD) ? fN1.format(C.pbD) + ' meses' : 'não retorna', ''], ['Rentabilidade', pct(C.rentab) + ' a.a.', 'lucro médio anual ÷ investimento'], ['ROI no horizonte', pct(C.roi, 0), `em ${C.H} meses`]]);
+    /* 11. viabilidade */
+    section('Análise de viabilidade', 'Indicadores de retorno, prazo e risco do investimento comparados à taxa mínima de atratividade (TMA).');
+    vbox();
+    kpis([['VPL', brl0(C.vpl), 'valor criado acima da TMA'], ['TIR', tirTxt(C), Number.isFinite(C.tirM) ? pct(C.tirM, 2) + ' a.m.' : ''], ['Payback simples', pbTxt(C.pb), Number.isFinite(C.pb) ? fN1.format(C.pb / 12) + ' anos' : ''],
+      ['Payback descontado', pbTxt(C.pbD), Number.isFinite(C.pbD) ? fN1.format(C.pbD / 12) + ' anos' : ''], ['Rentabilidade', pct(C.rentab) + ' a.a.', 'lucro médio anual ÷ investimento'], ['Lucratividade', pct(C.lucrat1), `ano 1 · ano 2: ${pct(C.lucrat2)}`],
+      ['ROI no horizonte', pct(C.roi, 0), `em ${C.H} meses`], ['Equilíbrio operacional', C.mesEquilibrio ? 'mês ' + C.mesEquilibrio : 'não atinge', 'primeiro mês com lucro'], ['Menor saldo de caixa', brl0(C.caixaMin), `mês ${C.mesCaixaMin}`]]);
     sub('Critérios avaliados');
     table(['Critério', 'Resultado', 'Status', 'Observação'], C.checks.map(c => [c.nome, c.val, D.statusTxt[c.ok], c.info]), { status: 2, fs: 8, cols: { 0: { cellWidth: 50 }, 1: { cellWidth: 32 }, 2: { cellWidth: 18 } } });
     sub('Ponto de equilíbrio (média mensal do ano 1)');
-    table(['Indicador', 'Valor'], [['PE contábil', brl0(C.peR) + '/mês'], ['PE econômico (inclui a TMA)', brl0(C.peEcon) + '/mês'], ['Receita média prevista', brl0(C.receitaMes1) + '/mês'], ['Margem de segurança', pct(C.margemSeg)], ['Margem de contribuição', pct(C.mcPct1)], ['Primeiro mês com lucro operacional', C.mesEquilibrio ? 'mês ' + C.mesEquilibrio : 'não atinge'],
+    table(['Indicador', 'Valor'], [['PE contábil', brl0(C.peR) + '/mês'], ['PE econômico (inclui a TMA)', brl0(C.peEcon) + '/mês'], ['Receita média prevista', brl0(C.receitaMes1) + '/mês'], ['Margem de segurança', pct(C.margemSeg)], ['Margem de contribuição', pct(C.mcPct1)],
       ...C.prods.map((x, i) => [`Volume no PE: ${x.p.nome}`, `${num(C.peUnid[i])} ${x.p.unidade}/mês (${num(C.peUnid[i] / 26)}/dia)`])], { num: [1] });
     image(G.payback, CW * 0.45, 'Tempo de retorno: fluxo de caixa acumulado (meses)');
 
-    /* cabeçalho e rodapé */
+    /* 12. cenários */
+    const cp = n(P.cenarioPct) || 20;
+    section('Cenários', `Simulação com volume de vendas ${fN.format(cp)}% abaixo (pessimista) e ${fN.format(cp)}% acima (otimista) do previsto, mantendo preços e custos fixos.`);
+    table(['Indicador', ...CEN.map(c => c.nome)], [
+      ['Volume de vendas', ...CEN.map(c => (c.k === 1 ? 'previsto' : (c.k > 1 ? '+' : '-') + fN.format(cp) + '%'))],
+      ['Receita no ano 1', ...CEN.map(c => brl0(c.c.anos[0]?.receita))],
+      ['Lucro líquido no ano 1', ...CEN.map(c => brl0(c.c.anos[0]?.ll))],
+      ['VPL', ...CEN.map(c => brl0(c.c.vpl))],
+      ['TIR', ...CEN.map(c => tirTxt(c.c))],
+      ['Payback', ...CEN.map(c => pbTxt(c.c.pb))],
+      ['Menor saldo de caixa', ...CEN.map(c => brl0(c.c.caixaMin))],
+      ['Margem de segurança', ...CEN.map(c => pct(c.c.margemSeg))],
+      ['Resultado', ...CEN.map(c => VERD[c.c.verdict])]
+    ], { num: [1, 2, 3], status: null, cols: { 0: { cellWidth: 52, fontStyle: 'bold' } } });
+    {
+      // cor do resultado por cenário
+      const last = doc.lastAutoTable;
+      if (last && last.body) {
+        const row = last.body[last.body.length - 1];
+        CEN.forEach((c, i) => { const cell = row.cells[i + 1]; if (cell) { const col = vcol(c.c.verdict); doc.setFillColor(...col.map(v => Math.round(v + (255 - v) * 0.88))); doc.rect(cell.x + 0.2, cell.y + 0.2, cell.width - 0.4, cell.height - 0.4, 'F'); font(8.5, 'bold', col); doc.text(T(VERD[c.c.verdict]), cell.x + cell.width - 2.2, cell.y + cell.height / 2 + 1.2, { align: 'right' }); } });
+      }
+    }
+    const pes = CEN[0].c;
+    para('Leitura dos cenários', pes.vpl > 0 && pes.caixaMin >= 0
+      ? `Mesmo com vendas ${fN.format(cp)}% menores o projeto mantém VPL positivo (${brl0(pes.vpl)}) e caixa sem ficar negativo, o que indica boa margem para imprevistos.`
+      : pes.vpl > 0 ? `Com vendas ${fN.format(cp)}% menores o VPL segue positivo, mas o caixa chega a ${brl0(pes.caixaMin)}. Reserve capital de giro adicional para esse risco.`
+      : `Com vendas ${fN.format(cp)}% menores o projeto deixa de ser viável (VPL de ${brl0(pes.vpl)}). O resultado depende de atingir o volume previsto, por isso vale validar a demanda antes (MVP) e manter custos fixos enxutos.`);
+
+    /* 13. avaliação do plano */
+    section('Avaliação do plano', 'Síntese dos pontos fortes, dos riscos identificados e das ações recomendadas.');
+    vbox();
+    const fortes = C.checks.filter(c => c.ok === 'good'), atencao = C.checks.filter(c => c.ok !== 'good');
+    if (fortes.length) { sub('Pontos fortes'); bullets(fortes.map(c => [`${c.nome}: ${c.val}`, c.info]), GRN); }
+    if (atencao.length) { sub('Pontos de atenção e recomendações'); bullets(atencao.map(c => [`${c.nome}: ${c.val}`, recomendacao(c)]), AMB); }
+    sub('Próximos passos');
+    bullets([
+      ['Validar a demanda com o MVP', `Executar o teste descrito na seção 4 (custo de ${brl0(C.mvp.custo)}) e confirmar o critério de sucesso antes do investimento completo.`],
+      ['Garantir os recursos', `Assegurar ${brl0(C.inv.proprio)} de capital próprio${C.inv.fin > 0 ? ` e o financiamento de ${brl0(C.inv.fin)}` : ''}, incluindo a reserva de capital de giro de ${brl0(C.inv.giro)}.`],
+      ['Acompanhar o ponto de equilíbrio', `Monitorar mensalmente se a receita supera ${brl0(C.peR)}, comparando o realizado com as metas da seção 6.`]
+    ], BR);
+
+    /* anexo A: projeção mensal em paisagem, uma página por ano */
+    const contas = [['Receita bruta', 'receita', 1, true], ['(-) Deduções sobre a venda', 'ded', -1], ['(-) CPV', 'cpv', -1], ['= Margem de contribuição', 'mc', 1, true], ['(-) Custos fixos', 'fixos', -1], ['(-) Depreciação', 'deprec', -1], ['(-) Juros', 'juros', -1], ['(-) IR/CSLL', 'ir', -1], ['= Lucro líquido', 'll', 1, true], ['(-) Amortização', 'amort', -1], ['Fluxo do projeto', 'fc', 1], ['Fluxo acumulado do projeto', 'acc', 1, true], ['Saldo de caixa', 'caixa', 1, true], ['Unidades vendidas', 'unid', 0]];
+    C.anos.forEach((a, yi) => {
+      doc.addPage('a4', 'landscape'); W = 297; H = 210; CW = W - 36; BOT = H - 20; y = TOP + 2;
+      if (yi === 0) toc.push({ n: 'A', title: 'Anexo A: projeção mensal', page: doc.getNumberOfPages() });
+      font(9, 'bold', BR); doc.text('ANEXO A  ·  PROJEÇÃO MENSAL', M, y);
+      y += 8; font(16, 'bold'); doc.text(T(`Ano ${a.ano}`), M, y); y += 6;
+      const rs = C.rows.filter(r => r.ano === a.ano);
+      const v0 = v => num(Math.round(v) || 0);
+      const body = contas.map(([l, k, sg2]) => [l, ...rs.map(r => sg2 === 0 ? num(r[k]) : v0(r[k] * sg2)),
+        sg2 === 0 ? num(a[k]) : (k === 'acc' || k === 'caixa') ? v0(rs[rs.length - 1][k]) : v0(a[k] * sg2)]);
+      table(['Conta (R$)', ...rs.map(r => r.label), 'Total'], body, { fs: 6.5, pad: 1.5, num: [...rs.keys()].map(i => i + 1).concat([rs.length + 1]), bold: contas.map((c, i) => c[3] ? i : -1).filter(i => i >= 0), cols: { 0: { cellWidth: 40 } } });
+    });
+
+    /* índice */
+    doc.setPage(tocPage); W = 210; H = 297; CW = W - 36;
+    y = TOP + 2;
+    font(9, 'bold', BR); doc.text('PLANO DE NEGÓCIO', M, y); y += 9;
+    font(21, 'bold'); doc.text('Sumário', M, y); y += 4; doc.setDrawColor(...BR); doc.setLineWidth(0.8); doc.line(M, y, M + 22, y); y += 12;
+    toc.forEach(t => {
+      font(11, 'bold', BR); doc.text(T(/^\d+$/.test(t.n) ? t.n.padStart(2, '0') : t.n), M, y);
+      font(11, 'normal', INK); doc.text(T(t.title), M + 12, y);
+      const tw = doc.getTextWidth(T(t.title));
+      doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.setLineDashPattern([0.6, 1.2], 0);
+      doc.line(M + 14 + tw, y - 0.8, W - M - 10, y - 0.8); doc.setLineDashPattern([], 0);
+      font(11, 'bold', INK); doc.text(String(t.page), W - M, y, { align: 'right' });
+      y += 9.5;
+    });
+
+    /* cabeçalho e rodapé (todas as páginas menos a capa) */
     const total = doc.getNumberOfPages();
     for (let p = 2; p <= total; p++) {
       doc.setPage(p);
+      const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight();
       if (logo) { const d = fit(lw, lh, 28, 9); doc.addImage(logo, 'PNG', M, 10, d.w, d.h, undefined, 'FAST'); }
-      else { font(9, 'bold', BR); doc.text(T(D.E.nome), M, 16); }
-      font(8, 'normal', MUT); doc.text(T(`Plano de negócio  ·  ${D.E.nome}`), W - M, 16, { align: 'right' });
-      doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, 21, W - M, 21);
-      doc.line(M, H - 14, W - M, H - 14);
-      font(7.5, 'normal', MUT); doc.text(T(dataHoje()), M, H - 9); doc.text(`${p} / ${total}`, W - M, H - 9, { align: 'right' });
+      else { font(9, 'bold', BR); doc.text(T(E.nome), M, 16); }
+      font(8, 'normal', MUT); doc.text(T(`Plano de negócio  ·  ${E.nome}`), pw - M, 16, { align: 'right' });
+      doc.setDrawColor(...LINE); doc.setLineWidth(0.3); doc.line(M, 21, pw - M, 21);
+      doc.line(M, ph - 14, pw - M, ph - 14);
+      font(7.5, 'normal', MUT); doc.text(T(dataHoje()), M, ph - 9); doc.text(`${p} / ${total}`, pw - M, ph - 9, { align: 'right' });
     }
     doc.save(fileBase() + '-plano-de-negocio.pdf');
     toast('PDF gerado');
@@ -1826,6 +1990,26 @@ async function gerarPPT(btn) {
       const s = slide('Análise de viabilidade');
       cards(s, [['VPL', brl0(C.vpl)], ['TIR', Number.isFinite(C.tirA) ? pct(C.tirA) + ' a.a.' : '—'], ['Payback', Number.isFinite(C.pb) ? fN1.format(C.pb) + ' meses' : 'não retorna'], ['Ponto de equilíbrio', brl0(C.peR) + '/mês'], ['Margem de segurança', pct(C.margemSeg)], ['Rentabilidade', pct(C.rentab) + ' a.a.']], { x: X, w: 5.4, cols: 2, h: 1.5, gap: 0.2 });
       tbl(s, ['Critério', 'Resultado', 'Status'], C.checks.map(c => [c.nome, c.val, [D.statusTxt[c.ok], c.ok]]), { x: 6.3, w: SW - 6.3 - X, colW: [3.33, 1.9, 1.2], status: 2, fs: 11 });
+    }
+    /* cenários */
+    {
+      const s = slide('Cenários');
+      const cs = cenarios(), cp = n(S.premissas.cenarioPct) || 20;
+      const tir = c => Number.isFinite(c.tirA) ? pct(c.tirA) + ' a.a.' : '—', pb = v => Number.isFinite(v) ? fN1.format(v) + ' meses' : 'não retorna';
+      tbl(s, ['Indicador', ...cs.map(c => c.nome)], [
+        ['Volume de vendas', ...cs.map(c => c.k === 1 ? 'previsto' : (c.k > 1 ? '+' : '−') + fN.format(cp) + '%')],
+        ['Receita no ano 1', ...cs.map(c => brl0(c.c.anos[0]?.receita))], ['Lucro líquido no ano 1', ...cs.map(c => brl0(c.c.anos[0]?.ll))],
+        ['VPL', ...cs.map(c => brl0(c.c.vpl))], ['TIR', ...cs.map(c => tir(c.c))], ['Payback', ...cs.map(c => pb(c.c.pb))],
+        ['Menor saldo de caixa', ...cs.map(c => brl0(c.c.caixaMin))]
+      ], { colW: [3.6, ...cs.map(() => (CW - 3.6) / 3)], num: [1, 2, 3], fs: 14 });
+      const bw = (CW - 3.6) / 3;
+      cs.forEach((c, i) => {
+        const v = c.c.verdict;
+        s.addShape(pptx.ShapeType.roundRect, { x: X + 3.6 + i * bw + 0.1, y: 5.3, w: bw - 0.2, h: 0.75, fill: { color: SB[v] }, line: { color: SB[v] }, rectRadius: 0.08 });
+        s.addText(VERD[v], { x: X + 3.6 + i * bw + 0.1, y: 5.3, w: bw - 0.2, h: 0.75, fontFace: F, fontSize: 16, bold: true, color: SC[v], align: 'center', valign: 'middle', margin: 0 });
+      });
+      s.addText('Resultado', { x: X, y: 5.3, w: 3.4, h: 0.75, fontFace: F, fontSize: 14, bold: true, color: INK, valign: 'middle', margin: 0 });
+      s.addText(`Preços e custos fixos mantidos; só o volume de vendas varia ${fN.format(cp)}% para baixo e para cima.`, { x: X, y: 6.3, w: CW, h: 0.4, fontFace: F, fontSize: 12, color: INK2, margin: 0 });
     }
     /* conclusão */
     {
